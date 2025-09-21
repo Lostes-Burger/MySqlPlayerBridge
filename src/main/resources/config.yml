@@ -1,0 +1,45 @@
+# Plugin Prefix color codes and rgb supported
+prefix: "§7[§9MPB§7]§r "
+# See your installed version here. Please provide at support requests and always check for newest version.
+version: "kp"
+
+settings:
+  # Change the root command (default /mpb <subcommand>)
+  command-prefix: "mpb"
+  # Should due to any reason the sync fail, the plugin will try again to save. Ff the sync fails again the Player will be kicked and their Data printed and Saved in a file in the plugin directory.
+  kickPlayerOnSyncFail: true
+
+  # Only important if you have an existing server with saved player data
+  # Important: If you are deploying this plugin on an existing server with saved player data,
+  # it can happen that the data from the wrong server is saved.
+  # For example, a player has important data on server1 but none on server2 (e.g., a farm world).
+  # If the player joins server1 first, everything is fine — the data is created in the database and transferred to server2.
+  # However, if the player joins server2 first, before the data from server1 is saved,
+  # the empty data will be saved and transferred back to server1, effectively deleting the original data.
+  # To avoid this problem, you can enable "no-entry-protection" below.
+  # Set it to true only on servers that should *not* be treated as the source of the default player data
+  # (in this example: server2 = true, server1 = false).
+  # If this option is enabled and a player joins without existing data (for all enabled sync modules),
+  # the connection will be denied and no data will be saved.
+  no-entry-protection: false
+
+  # Permission needed to perform admin commands
+  admin-permission: "mbp.admin"
+
+sync:
+  inventory: false
+  enderChest: false
+  amorSlots: false
+  location: false
+  gamemode: false
+  exp: false
+  health: false
+  saturation: false
+  # This plugin only supports Vault as Economy Manager.
+  # Make sure Vault (https://www.spigotmc.org/resources/vault.34315/) is installed, before enabling this module.
+  vaultEconomy: false
+
+# Create an automatic running task which saves all online player's inventory every given time.
+syncTask:
+  # Delay in Seconds
+  delay: 90

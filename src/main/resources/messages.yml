@@ -1,0 +1,18 @@
+# Message prefix can be changed in config.yml
+# Restart to apply any changes
+
+no-database-config-error: "§cEnter mysql credentials in the mysql.yml config. Restart after to use this plugin!"
+sync-success: "§7Player data§a successfully§9 synced!"
+sync-failed: "§cPlayer data could not be synced. Please contact staff or try joining again."
+created-data: "§7Player data§a successfully §9created"
+no-entry-protection-kick: "§cNo entry protection enabled.§7 You have no existing player data. You can't join this server before joining the parent server first and receiving your player data. If you think this is an error, please contact server staff."
+
+# Commands
+permission-error: "§cInsufficient permission to execute this command"
+# Placeholder <all subcommands> -> {subcomands}
+unknown-subcommand-error: "§cUnknown subcommand. Available: §7<{subcommands}>"
+no-subcommand-error: "§cProvide a subcommand. Available: §7<{subcommands}>"
+
+# Clear subcommand
+clear-wrong-usage: "§cWrong usage! Use clear <player_name/*>"
+clear-player-not-found: "§cPlayer not found. This player is not known. Deletion failed..."

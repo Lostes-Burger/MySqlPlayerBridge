@@ -1,0 +1,10 @@
+# Input your Database credentials. MariaDB/MySQL databases (server) supported.
+
+host: ""
+port: 3306
+database: ""
+user: ""
+password: ""
+
+# If you change this with a full table of player data a new Table will be created and all data ignored (not deleted)!
+main-table-name: "player_data"
