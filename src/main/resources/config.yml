@@ -1,7 +1,7 @@
 # Plugin Prefix color codes and rgb supported
 prefix: "§7[§9MPB§7]§r "
 # See your installed version here. Please provide at support requests and always check for newest version.
-version: "kp"
+version: ""
 
 settings:
   # Change the root command (default /mpb <subcommand>)

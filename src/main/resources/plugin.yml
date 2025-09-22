@@ -4,4 +4,5 @@ main: de.lostesburger.mySqlPlayerBridge.Main
 api-version: '1.21'
 authors: [ LostesBurger ]
 folia-supported: true
-softdepend: [NBTAPI]
+depend: [NBTAPI]
+softdepend: [VAULT]

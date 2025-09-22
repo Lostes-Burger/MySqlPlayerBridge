@@ -42,7 +42,7 @@ public final class Main extends JavaPlugin {
     public static Version McVer;
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.1";
+    public static String version = "3.2";
     public static String pluginName = "MySqlPlayerBridge";
     public static String prefix;
 
@@ -72,9 +72,8 @@ public final class Main extends JavaPlugin {
             this.getLogger().log(Level.SEVERE, "Plugin is using Paper API 1.21 -> downgrading not fully supported (may cause unknown bugs)");
         }
         if(Minecraft.isFolia()){
-            this.getLogger().warning("Server is running Folia, a software not fully supported by this plugin");
-            this.getLogger().warning("Unknown errors in the software itself can occur (including major security flaws)");
-            this.getLogger().warning("or errors inside this Plugin not found by the developers");
+            this.getLogger().warning("Server is running Folia, a software supported by this plugin");
+            this.getLogger().warning("Unknown errors in folia itself can occur (including major security flaws)");
         }
 
         /**
@@ -135,7 +134,6 @@ public final class Main extends JavaPlugin {
         /**
          * NBT-API
          */
-        //new NBTAPIManager().checkAndUpdate();
         if (!Utils.isPluginEnabled("NBTAPI")) {
             Scheduler.Task task = Scheduler.runTimerAsync(() -> {
                 getLogger().warning("NBTAPI is not loaded make sure its installed!");
