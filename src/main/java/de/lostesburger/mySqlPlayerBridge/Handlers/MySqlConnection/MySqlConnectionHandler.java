@@ -53,6 +53,18 @@ public class MySqlConnectionHandler {
                     MySqlManager.ColumnDefinition.text("server_type"),
                     MySqlManager.ColumnDefinition.text("serialization_type")
             );
+            mySqlManager.createTable(Main.TABLE_NAME_EFFECTS,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("effects")
+            );
+            mySqlManager.createTable(Main.TABLE_NAME_ADVANCEMENTS,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("advancements")
+            );
+            mySqlManager.createTable(Main.TABLE_NAME_STATS,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("stats")
+            );
         } catch (MySqlError e) {
             new MySqlErrorHandler().onTableCreate();
             throw new RuntimeException(e);

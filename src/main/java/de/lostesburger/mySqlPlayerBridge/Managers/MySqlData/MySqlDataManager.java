@@ -11,6 +11,7 @@ import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
@@ -127,7 +128,10 @@ public class MySqlDataManager {
             new MySqlErrorHandler().savePlayerData(player, data);
             throw new RuntimeException(e);
         }
+
+        Main.effectDataManager.savePlayer(player);
     }
+
 
     public HashMap<String, Object> getPlayerDataFromDB(Player player) throws NoPlayerDataException {
         if(!hasData(player)){
@@ -238,6 +242,8 @@ public class MySqlDataManager {
             }
 
         }, Main.getInstance());
+
+        Main.effectDataManager.applyPlayer(player);
     }
 
     public void saveAllOnlinePlayers(){

@@ -7,11 +7,13 @@ import de.lostesburger.corelib.PluginSmiths.Utils.PluginSmithsUpdateCheck;
 import de.lostesburger.corelib.Scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.EffectDataManager.EffectDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.NbtAPI.NBTAPIManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
+import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.PotionSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
@@ -42,7 +44,7 @@ public final class Main extends JavaPlugin {
     public static Version McVer;
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.2";
+    public static String version = "3.3";
     public static String pluginName = "MySqlPlayerBridge";
     public static String prefix;
 
@@ -51,10 +53,18 @@ public final class Main extends JavaPlugin {
     public static PlayerManager playerManager;
     public static PlayerBridgeManager playerBridgeManager;
     public static CommandManager commandManager;
+    public static EffectDataManager effectDataManager;
+
     public static MySqlConnectionHandler mySqlConnectionHandler;
+
     public static NBTSerializer nbtSerializer = null;
+    public static PotionSerializer potionSerializer;
 
     public static String TABLE_NAME = "player_data";
+    public static String TABLE_NAME_EFFECTS;
+    public static String TABLE_NAME_ADVANCEMENTS;
+    public static String TABLE_NAME_STATS;
+
     public static SerializationType serializationType = SerializationType.NBT_API;
 
     public static boolean DEBUG = false;
@@ -69,7 +79,7 @@ public final class Main extends JavaPlugin {
 
         McVer = Minecraft.getVersion();
         if(McVer != Version.v1_21){
-            this.getLogger().log(Level.SEVERE, "Plugin is using Paper API 1.21 -> downgrading not fully supported (may cause unknown bugs)");
+            this.getLogger().log(Level.SEVERE, "Plugin is using Paper API 1.21 -> could not detect server version as 1.21.*");
         }
         if(Minecraft.isFolia()){
             this.getLogger().warning("Server is running Folia, a software supported by this plugin");
@@ -89,6 +99,9 @@ public final class Main extends JavaPlugin {
         BukkitYMLConfig ymlConfigMySQL = new BukkitYMLConfig(this, "mysql.yml");
         mysqlConf = ymlConfigMySQL.getConfig();
         TABLE_NAME = mysqlConf.getString("main-table-name");
+        TABLE_NAME_EFFECTS = TABLE_NAME+"_potion_effects";
+        TABLE_NAME_ADVANCEMENTS = TABLE_NAME+"_advancements";
+        TABLE_NAME_STATS = TABLE_NAME+"_stats";
 
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "messages.yml");
         messages = ymlConfigMessages.getConfig();
@@ -181,6 +194,8 @@ public final class Main extends JavaPlugin {
         playerManager = new PlayerManager();
         playerBridgeManager = new PlayerBridgeManager();
         commandManager = new CommandManager();
+        potionSerializer = new PotionSerializer();
+        effectDataManager = new EffectDataManager();
     }
 
 

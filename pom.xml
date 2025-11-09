@@ -6,7 +6,7 @@
 
     <groupId>de.lostesburger</groupId>
     <artifactId>MySqlPlayerBridge</artifactId>
-    <version>3.1</version>
+    <version>3.3</version>
     <packaging>jar</packaging>
 
     <name>MySqlPlayerBridge</name>
@@ -72,6 +72,12 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.9</version>
+        </dependency>
+
 
         <!-- Vault API -->
         <dependency>

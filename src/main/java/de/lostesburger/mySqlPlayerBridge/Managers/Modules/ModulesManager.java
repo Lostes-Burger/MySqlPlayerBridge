@@ -15,6 +15,7 @@ public class ModulesManager {
     public String pathSyncVaultEconomy;
     public String pathSyncInventory;
     public String pathSyncTaskDelay;
+    public String pathSyncEffects;
 
     public boolean kickOnSyncFail;
     public boolean syncEnderChest;
@@ -27,6 +28,7 @@ public class ModulesManager {
     public boolean syncInventory;
     public boolean syncVaultEconomy;
     public int syncTaskDelay;
+    public boolean syncEffects;
 
 
     public ModulesManager(){
@@ -42,6 +44,7 @@ public class ModulesManager {
         this.pathSyncSaturation = "sync.saturation";
         this.pathSyncVaultEconomy = "sync.vaultEconomy";
         this.pathSyncTaskDelay = "syncTask.delay";
+        this.pathSyncEffects = "sync.effects";
 
 
         this.syncVaultEconomy = conf.getBoolean(this.pathSyncVaultEconomy);
@@ -55,6 +58,6 @@ public class ModulesManager {
         this.syncInventory = conf.getBoolean(this.pathSyncInventory);
         this.kickOnSyncFail = conf.getBoolean(this.pathKickOnSyncFail);
         this.syncTaskDelay = (conf.getInt(this.pathSyncTaskDelay)*20);
-
+        this.syncEffects = conf.getBoolean(this.pathSyncEffects);
     }
 }
