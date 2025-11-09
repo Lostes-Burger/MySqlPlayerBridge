@@ -41,6 +41,7 @@ Uses the **NBT API** for reliable and version-independent data transfer.
     - Health
     - Saturation
     - Economy (via Vault)
+    - Potion Effects
 
 ### 🧠 **Fail-Safe Data Handling**  
   Automatic retries, optional player kick on repeated failure, and secure local backups.
@@ -74,7 +75,7 @@ Here’s what’s coming soon:
 
 - 🧰 **Extended Sync Modules**  
   Planned additions include:
-    - 🧪 **Active Potion Effects** – sync active potion effects across servers.
+    
     - 🏆 **Advancements** – sync player achievements.
     - 📊 **Statistics** – ensure global tracking of minecraft statistics.
     - 🔧 **Commands** – New admin commands for manual intervention
@@ -137,6 +138,7 @@ sync:
   # This plugin only supports Vault as Economy Manager.
   # Make sure Vault (https://www.spigotmc.org/resources/vault.34315/) is installed, before enabling this module.
   vaultEconomy: false
+  effects: false
 
 # Create an automatic running task which saves all online player's inventory every given time.
 syncTask:
@@ -166,7 +168,12 @@ no-subcommand-error: "§cProvide a subcommand. Available: §7<{subcommands}>"
 
 # Clear subcommand
 clear-wrong-usage: "§cWrong usage! Use clear <player_name/*>"
-clear-player-not-found: "§cPlayer not found. This player is not known. Deletion failed..."
+clear-player-not-found: "§cPlayer not found. §7This player is not known. Deletion failed!"
+
+# Sync subcommand
+manual-sync-success: "§7All player data was §asucsessfully §7synced"
+manual-sync-wrong-usage: "§cWrong usage! Use sync <player_name/*>"
+manual-sync-player-not-found: "§cPlayer not found. §7This player is not known. Sync failed!"
 ```
 </details>
 
