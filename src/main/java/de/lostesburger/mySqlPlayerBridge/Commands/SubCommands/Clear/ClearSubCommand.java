@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Commands.ClearCommand;
+package de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Clear;
 
 import de.lostesburger.corelib.CommandManager.ServerCommand;
 import de.lostesburger.corelib.MySQL.MySqlError;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ClearCommand implements ServerCommand {
+public class ClearSubCommand implements ServerCommand {
     @Override
     public void execute(CommandSender commandSender, String[] strings) {
         if(!commandSender.hasPermission(Main.config.getString("settings.admin-permission"))){

@@ -15,4 +15,9 @@ no-subcommand-error: "§cProvide a subcommand. Available: §7<{subcommands}>"
 
 # Clear subcommand
 clear-wrong-usage: "§cWrong usage! Use clear <player_name/*>"
-clear-player-not-found: "§cPlayer not found. This player is not known. Deletion failed..."
+clear-player-not-found: "§cPlayer not found. §7This player is not known. Deletion failed!"
+
+# Sync subcommand
+manual-sync-success: "§7All player data was §asucsessfully §7synced"
+manual-sync-wrong-usage: "§cWrong usage! Use sync <player_name/*>"
+manual-sync-player-not-found: "§cPlayer not found. §7This player is not known. Sync failed!"

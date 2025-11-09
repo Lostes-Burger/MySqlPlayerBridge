@@ -5,7 +5,8 @@ import de.lostesburger.corelib.CommandManager.ServerCommand;
 import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManager;
 import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManagerException;
 import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManagerExceptionType;
-import de.lostesburger.mySqlPlayerBridge.Commands.ClearCommand.ClearCommand;
+import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Clear.ClearSubCommand;
+import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Sync.SyncSubCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.command.CommandSender;
@@ -20,7 +21,8 @@ public class MPBCommand implements ServerCommand {
         subCommandManager = new SubCommandManager();
         adminPerm = Main.config.getString("settings.admin-permission");
 
-        subCommandManager.addSubCommand("clear", new ClearCommand());
+        subCommandManager.addSubCommand("clear", new ClearSubCommand());
+        subCommandManager.addSubCommand("sync", new SyncSubCommand());
     }
 
     @Override
