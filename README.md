@@ -186,3 +186,5 @@ password: ""
 main-table-name: "player_data"
 ```
 </details>
+
+README.md written by [ChatGPT](https://chatgpt.com/)
