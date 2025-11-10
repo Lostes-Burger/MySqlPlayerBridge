@@ -20,6 +20,7 @@ import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
 import de.lostesburger.mySqlPlayerBridge.Serialization.NBTSerialization.NBTSerializer;
+import de.lostesburger.mySqlPlayerBridge.Utils.Checks.UpdateCheck;
 import de.lostesburger.mySqlPlayerBridge.Utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -141,7 +142,7 @@ public final class Main extends JavaPlugin {
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
-        new PluginSmithsUpdateCheck(this, version, pluginName, prefix);
+        new UpdateCheck(this, version, pluginName, prefix);
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
 
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
