@@ -42,6 +42,7 @@ Uses the **NBT API** for reliable and version-independent data transfer.
     - Saturation
     - Economy (via Vault)
     - Potion Effects
+    - Advancements
 
 ### 🧠 **Fail-Safe Data Handling**  
   Automatic retries, optional player kick on repeated failure, and secure local backups.
@@ -75,8 +76,6 @@ Here’s what’s coming soon:
 
 - 🧰 **Extended Sync Modules**  
   Planned additions include:
-    
-    - 🏆 **Advancements** – sync player achievements.
     - 📊 **Statistics** – ensure global tracking of minecraft statistics.
     - 🔧 **Commands** – New admin commands for manual intervention
 
@@ -139,6 +138,7 @@ sync:
   # Make sure Vault (https://www.spigotmc.org/resources/vault.34315/) is installed, before enabling this module.
   vaultEconomy: false
   effects: false
+  advancements: false
 
 # Create an automatic running task which saves all online player's inventory every given time.
 syncTask:

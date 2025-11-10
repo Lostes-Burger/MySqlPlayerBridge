@@ -130,6 +130,7 @@ public class MySqlDataManager {
         }
 
         Main.effectDataManager.savePlayer(player);
+        Main.advancementDataManager.savePlayer(player);
     }
 
 
@@ -244,6 +245,7 @@ public class MySqlDataManager {
         }, Main.getInstance());
 
         Main.effectDataManager.applyPlayer(player);
+        Main.advancementDataManager.applyPlayer(player);
     }
 
     public void saveAllOnlinePlayers(){
