@@ -4,6 +4,7 @@ import de.lostesburger.corelib.Chat.ColorUtils.ColorUtils;
 import de.lostesburger.corelib.PluginSmiths.License.PluginSmithsAPI;
 import de.lostesburger.corelib.Scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -27,13 +28,13 @@ public class UpdateCheck implements Listener {
             this.pluginName = pluginName;
             if (!latestVersion.equalsIgnoreCase(currentVersion)) {
                 this.updateAvailable = true;
-                plugin.getLogger().log(Level.INFO, "A new version of this plugin is available! Current version: " + currentVersion + " Latest version: " + latestVersion);
-                plugin.getServer().getPluginManager().registerEvents(this, plugin);
+                plugin.getLogger().log(Level.WARNING, "A new version of this plugin is available! Current version: " + currentVersion + " Latest version: " + latestVersion);
             }
 
         }, 100L, 60*60,plugin);
 
         Main.schedulers.add(task);
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
     }
 
     @EventHandler
