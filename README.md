@@ -43,6 +43,7 @@ Uses the **NBT API** for reliable and version-independent data transfer.
     - Economy (via Vault)
     - Potion Effects
     - Advancements
+    - Statistics
 
 ### 🧠 **Fail-Safe Data Handling**  
   Automatic retries, optional player kick on repeated failure, and secure local backups.
@@ -76,7 +77,6 @@ Here’s what’s coming soon:
 
 - 🧰 **Extended Sync Modules**  
   Planned additions include:
-    - 📊 **Statistics** – ensure global tracking of minecraft statistics.
     - 🔧 **Commands** – New admin commands for manual intervention
 
 These features are already in development and will be introduced step by step —  
@@ -139,6 +139,7 @@ sync:
   vaultEconomy: false
   effects: false
   advancements: false
+  statistics: false
 
 # Create an automatic running task which saves all online player's inventory every given time.
 syncTask:

@@ -13,9 +13,11 @@ import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.NbtAPI.NBTAPIManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.PotionSerializer;
+import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.StatsSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
@@ -47,7 +49,7 @@ public final class Main extends JavaPlugin {
     public static Version McVer;
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.4";
+    public static String version = "3.5";
     public static String pluginName = "MySqlPlayerBridge";
     public static String prefix;
 
@@ -58,12 +60,14 @@ public final class Main extends JavaPlugin {
     public static CommandManager commandManager;
     public static EffectDataManager effectDataManager;
     public static AdvancementDataManager advancementDataManager;
+    public static StatsDataManager statsDataManager;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
     public static NBTSerializer nbtSerializer = null;
     public static PotionSerializer potionSerializer;
     public static AdvancementSerializer advancementSerializer;
+    public static StatsSerializer statsSerializer;
 
     public static String TABLE_NAME = "player_data";
     public static String TABLE_NAME_EFFECTS;
@@ -212,6 +216,8 @@ public final class Main extends JavaPlugin {
         effectDataManager = new EffectDataManager();
         advancementSerializer = new AdvancementSerializer();
         advancementDataManager = new AdvancementDataManager();
+        statsSerializer = new StatsSerializer();
+        statsDataManager = new StatsDataManager();
     }
 
 
