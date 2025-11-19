@@ -75,9 +75,9 @@ Here’s what’s coming soon:
 - 🧓 **Legacy Serializer Option without NBTAPI plugin**  
   A simplified mode for smaller setups (drops Folia & cross-version support for easier configurations).
 
-- 🧰 **Extended Sync Modules**  
-  Planned additions include:
-    - 🔧 **Commands** – New admin commands for manual intervention
+- 🧰 **Extended Sync Modules**
+
+- 🔧 **Commands** – New admin commands for manual intervention
 
 These features are already in development and will be introduced step by step —  
 bringing you **the most complete player sync solution** available for modern Minecraft servers.
