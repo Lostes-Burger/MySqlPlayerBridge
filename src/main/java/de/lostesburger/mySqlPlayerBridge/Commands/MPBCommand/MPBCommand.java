@@ -1,10 +1,9 @@
 package de.lostesburger.mySqlPlayerBridge.Commands.MPBCommand;
 
-
-import de.lostesburger.corelib.CommandManager.ServerCommand;
-import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManager;
-import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManagerException;
-import de.lostesburger.corelib.CommandManager.SubCommand.SubCommandManagerExceptionType;
+import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
+import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommandManager;
+import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommandManagerException;
+import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommandManagerExceptionType;
 import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Clear.ClearSubCommand;
 import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Sync.SyncSubCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;

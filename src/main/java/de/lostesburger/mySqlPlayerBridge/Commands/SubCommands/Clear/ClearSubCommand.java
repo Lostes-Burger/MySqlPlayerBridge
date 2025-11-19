@@ -1,8 +1,8 @@
 package de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Clear;
 
-import de.lostesburger.corelib.CommandManager.ServerCommand;
-import de.lostesburger.corelib.MySQL.MySqlError;
-import de.lostesburger.corelib.MySQL.MySqlManager;
+import de.craftcore.craftcore.global.mysql.MySqlError;
+import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;

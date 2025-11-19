@@ -1,10 +1,9 @@
 package de.lostesburger.mySqlPlayerBridge.NoEntryProtection;
 
 
-import de.lostesburger.corelib.Scheduler.Scheduler;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.logging.Level;

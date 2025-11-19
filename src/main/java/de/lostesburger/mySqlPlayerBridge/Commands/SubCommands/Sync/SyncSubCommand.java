@@ -1,6 +1,6 @@
 package de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Sync;
 
-import de.lostesburger.corelib.CommandManager.ServerCommand;
+import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;

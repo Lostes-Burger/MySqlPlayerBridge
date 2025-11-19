@@ -1,8 +1,8 @@
 package de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection;
 
-import de.lostesburger.corelib.MySQL.MySQL;
-import de.lostesburger.corelib.MySQL.MySqlError;
-import de.lostesburger.corelib.MySQL.MySqlManager;
+import de.craftcore.craftcore.global.mysql.MySQL;
+import de.craftcore.craftcore.global.mysql.MySqlError;
+import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;

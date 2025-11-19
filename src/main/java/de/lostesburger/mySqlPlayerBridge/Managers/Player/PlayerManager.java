@@ -1,6 +1,6 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.Player;
 
-import de.lostesburger.corelib.Scheduler.Scheduler;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.entity.Player;

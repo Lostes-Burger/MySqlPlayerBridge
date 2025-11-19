@@ -1,6 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Utils;
 
-import de.lostesburger.corelib.Chat.ColorUtils.ColorUtils;
+
+import de.craftcore.craftcore.paper.chat.colorutils.ColorUtils;
 import de.lostesburger.mySqlPlayerBridge.Main;
 
 public class Chat {

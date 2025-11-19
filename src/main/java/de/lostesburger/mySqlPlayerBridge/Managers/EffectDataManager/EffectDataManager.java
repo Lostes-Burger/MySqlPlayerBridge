@@ -1,10 +1,10 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.EffectDataManager;
 
-import de.lostesburger.corelib.MySQL.MySqlError;
-import de.lostesburger.corelib.MySQL.MySqlManager;
-import de.lostesburger.corelib.NMS.Minecraft;
-import de.lostesburger.corelib.Scheduler.Scheduler;
-import de.lostesburger.corelib.Scheduler.SchedulerException;
+import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
+import de.craftcore.craftcore.global.mysql.MySqlError;
+import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.craftcore.craftcore.global.scheduler.SchedulerException;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;

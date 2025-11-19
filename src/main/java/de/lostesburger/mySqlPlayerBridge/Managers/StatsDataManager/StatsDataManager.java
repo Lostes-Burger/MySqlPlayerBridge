@@ -1,8 +1,9 @@
-package de.lostesburger.mySqlPlayerBridge.Managers;
+package de.lostesburger.mySqlPlayerBridge.Managers.StatsDataManager;
 
-import de.lostesburger.corelib.MySQL.MySqlError;
-import de.lostesburger.corelib.MySQL.MySqlManager;
-import de.lostesburger.corelib.Scheduler.Scheduler;
+
+import de.craftcore.craftcore.global.mysql.MySqlError;
+import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
 

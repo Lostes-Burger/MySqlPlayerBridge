@@ -3,8 +3,8 @@ package de.lostesburger.mySqlPlayerBridge.Serialization.Serialization;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import de.lostesburger.corelib.NMS.Minecraft;
-import de.lostesburger.corelib.Scheduler.Scheduler;
+import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.Statistic;
 import org.bukkit.entity.EntityType;
@@ -105,7 +105,8 @@ public class StatsSerializer {
                 continue;
             }
 
-            if (apply) {
+            if (!apply) return null;
+
                 try {
                     switch (stat.getType()) {
                         case UNTYPED -> {
@@ -166,7 +167,7 @@ public class StatsSerializer {
                 } catch (Exception e) {
                     if (DEBUG) Bukkit.getLogger().warning("[StatsSerializer] Fehler beim Setzen von " + stat.name() + ": " + e.getMessage());
                 }
-            }
+
         }
 
         return statsArray;
