@@ -1,19 +1,14 @@
 package de.lostesburger.mySqlPlayerBridge;
-
-import de.lostesburger.corelib.Config.BukkitYMLConfig;
-import de.lostesburger.corelib.NMS.Minecraft;
-import de.lostesburger.corelib.NMS.Version;
-import de.lostesburger.corelib.PluginSmiths.Utils.PluginSmithsUpdateCheck;
-import de.lostesburger.corelib.Scheduler.Scheduler;
+import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
+import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.AdvancementDataManager.AdvancementDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.EffectDataManager.EffectDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.NbtAPI.NBTAPIManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.StatsDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.StatsDataManager.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.PotionSerializer;
@@ -22,7 +17,7 @@ import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
 import de.lostesburger.mySqlPlayerBridge.Serialization.NBTSerialization.NBTSerializer;
-import de.lostesburger.mySqlPlayerBridge.Utils.Checks.UpdateCheck;
+import de.craftcore.craftcore.paper.githubUpdate.GitHubUpdateCheckerHandler;
 import de.lostesburger.mySqlPlayerBridge.Utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -32,6 +27,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
+import de.craftcore.craftcore.global.scheduler.Scheduler;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,11 +41,9 @@ public final class Main extends JavaPlugin {
     public static FileConfiguration mysqlConf;
     public static FileConfiguration messages;
 
-
-    public static Version McVer;
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.5";
+    public static String version = "3.5.2";
     public static String pluginName = "MySqlPlayerBridge";
     public static String prefix;
 
@@ -86,10 +80,6 @@ public final class Main extends JavaPlugin {
         serverType = Bukkit.getServer().getVersion();
         this.getLogger().log(Level.INFO, "Detected server type: " + serverType);
 
-        McVer = Minecraft.getVersion();
-        if (McVer != Version.v1_21) {
-            this.getLogger().log(Level.SEVERE, "Plugin is using Paper API 1.21 -> could not detect server version as 1.21.*");
-        }
         if (Minecraft.isFolia()) {
             this.getLogger().warning("Server is running Folia, a software supported by this plugin");
             this.getLogger().warning("Unknown errors in folia itself can occur (including major security flaws)");
@@ -146,7 +136,7 @@ public final class Main extends JavaPlugin {
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
-        new UpdateCheck(this, version, pluginName, prefix);
+        new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", prefix, 30*60);
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
 
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
