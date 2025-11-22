@@ -6,7 +6,7 @@
 
     <groupId>de.lostesburger</groupId>
     <artifactId>MySqlPlayerBridge</artifactId>
-    <version>3.5.3</version>
+    <version>3.5.4</version>
     <packaging>jar</packaging>
 
     <name>MySqlPlayerBridge</name>

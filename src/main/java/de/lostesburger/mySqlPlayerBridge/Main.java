@@ -43,7 +43,7 @@ public final class Main extends JavaPlugin {
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.5.3";
+    public static String version = "3.5.4";
     public static String pluginName = "MySqlPlayerBridge";
     public static String prefix;
 
