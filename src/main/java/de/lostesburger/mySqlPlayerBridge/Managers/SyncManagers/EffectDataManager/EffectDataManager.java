@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.EffectDataManager;
+package de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager;
 
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.global.mysql.MySqlError;

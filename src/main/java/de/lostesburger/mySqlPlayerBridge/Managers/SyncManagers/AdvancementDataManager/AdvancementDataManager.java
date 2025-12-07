@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.AdvancementDataManager;
+package de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager;
 
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
