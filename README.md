@@ -44,6 +44,7 @@ Uses the **NBT API** for reliable and version-independent data transfer.
     - Potion Effects
     - Advancements
     - Statistics
+    - Hotbar slot selection 
 
 ### 🧠 **Fail-Safe Data Handling**  
   Automatic retries, optional player kick on repeated failure, and secure local backups.
