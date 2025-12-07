@@ -37,8 +37,6 @@ sync:
   enderChest: false
   amorSlots: false
   location: false
-  # Respawn location sync only useful when using location sync
-  respawn-location: false
   gamemode: false
   exp: false
   health: false
@@ -49,6 +47,8 @@ sync:
   effects: false
   advancements: false
   statistics: false
+  # synchronizes a player's hotbar slot selection
+  selected_hotbar_slot: false
 
 # Create an automatic running task which saves all online player's inventory every given time.
 syncTask:

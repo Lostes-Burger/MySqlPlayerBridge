@@ -18,6 +18,7 @@ public class ModulesManager {
     public String pathSyncEffects;
     public String pathSyncAdvancements;
     public String pathSyncStats;
+    public String pathSyncSelectedHotbarSlot;
 
     public boolean kickOnSyncFail;
     public boolean syncEnderChest;
@@ -33,6 +34,7 @@ public class ModulesManager {
     public boolean syncEffects;
     public boolean syncAdvancements;
     public boolean syncStats;
+    public boolean syncSelectedHotbarSlot;
 
 
     public ModulesManager(){
@@ -51,6 +53,7 @@ public class ModulesManager {
         this.pathSyncEffects = "sync.effects";
         this.pathSyncAdvancements = "sync.advancements";
         this.pathSyncStats = "sync.statistics";
+        this.pathSyncSelectedHotbarSlot = "sync.selected_hotbar_slot";
 
 
         this.syncVaultEconomy = conf.getBoolean(this.pathSyncVaultEconomy);
@@ -67,5 +70,6 @@ public class ModulesManager {
         this.syncEffects = conf.getBoolean(this.pathSyncEffects);
         this.syncAdvancements = conf.getBoolean(this.pathSyncAdvancements);
         this.syncStats = conf.getBoolean(this.pathSyncStats);
+        this.syncSelectedHotbarSlot = conf.getBoolean(this.pathSyncSelectedHotbarSlot);
     }
 }

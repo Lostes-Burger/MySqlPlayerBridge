@@ -65,6 +65,10 @@ public class MySqlConnectionHandler {
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
                     MySqlManager.ColumnDefinition.longText("stats")
             );
+            mySqlManager.createTable(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.integer("slot")
+            );
         } catch (MySqlError e) {
             new MySqlErrorHandler().onTableCreate();
             throw new RuntimeException(e);

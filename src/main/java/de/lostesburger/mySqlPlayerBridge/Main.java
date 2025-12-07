@@ -8,6 +8,7 @@ import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager.AdvancementDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.HotbarSelectionDataManager.HotbarSlotSelectionDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
@@ -56,6 +57,7 @@ public final class Main extends JavaPlugin {
     public static EffectDataManager effectDataManager;
     public static AdvancementDataManager advancementDataManager;
     public static StatsDataManager statsDataManager;
+    public static HotbarSlotSelectionDataManager hotbarSlotSelectionDataManager;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -68,6 +70,7 @@ public final class Main extends JavaPlugin {
     public static String TABLE_NAME_EFFECTS;
     public static String TABLE_NAME_ADVANCEMENTS;
     public static String TABLE_NAME_STATS;
+    public static String TABLE_NAME_SELECTED_HOTBAR_SLOT;
 
     public static SerializationType serializationType = SerializationType.NBT_API;
 
@@ -83,7 +86,7 @@ public final class Main extends JavaPlugin {
 
         if (Minecraft.isFolia()) {
             this.getLogger().warning("Server is running Folia, a software supported by this plugin");
-            this.getLogger().warning("Unknown errors in folia itself can occur (including major security flaws)");
+            this.getLogger().warning("Unknown errors in Folia itself can occur (including major security flaws)");
         }
 
         /**
@@ -106,6 +109,7 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_EFFECTS = TABLE_NAME + "_potion_effects";
         TABLE_NAME_ADVANCEMENTS = TABLE_NAME + "_advancements";
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
+        TABLE_NAME_SELECTED_HOTBAR_SLOT = TABLE_NAME  + "_selected_hotbar_slot";
 
         this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
@@ -211,6 +215,7 @@ public final class Main extends JavaPlugin {
         advancementDataManager = new AdvancementDataManager();
         statsSerializer = new StatsSerializer();
         statsDataManager = new StatsDataManager();
+        hotbarSlotSelectionDataManager = new HotbarSlotSelectionDataManager();
     }
 
 
