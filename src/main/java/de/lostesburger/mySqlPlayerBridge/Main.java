@@ -2,13 +2,13 @@ package de.lostesburger.mySqlPlayerBridge;
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
-import de.lostesburger.mySqlPlayerBridge.Managers.AdvancementDataManager.AdvancementDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.EffectDataManager.EffectDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.StatsDataManager.StatsDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager.AdvancementDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.PotionSerializer;
@@ -43,9 +43,10 @@ public final class Main extends JavaPlugin {
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.5.4";
+    public static String version = "3.6.0";
     public static String pluginName = "MySqlPlayerBridge";
-    public static String prefix;
+    public static String PREFIX;
+    public static String LANGUAGE;
 
     public static VaultManager vaultManager;
     public static ModulesManager modulesManager;
@@ -91,7 +92,8 @@ public final class Main extends JavaPlugin {
         this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfig = new BukkitYMLConfig(this, "config.yml");
         config = ymlConfig.getConfig();
-        prefix = config.getString("prefix");
+        PREFIX = config.getString("prefix");
+        LANGUAGE = config.getString("settings.language");
         config.set("version", version);
         try {
             Main.config.save(new File(Main.getInstance().getDataFolder(), "config.yml"));
@@ -105,7 +107,8 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_ADVANCEMENTS = TABLE_NAME + "_advancements";
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
 
-        BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "messages.yml");
+        this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
+        BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
         messages = ymlConfigMessages.getConfig();
 
         this.getLogger().log(Level.INFO, "checking for configuration changes ...");
@@ -115,28 +118,28 @@ public final class Main extends JavaPlugin {
             this.getLogger().log(Level.WARNING, msg);
             Scheduler.runLaterAsync(() -> {
                 this.getLogger().log(Level.WARNING, msg);
-                Bukkit.broadcastMessage(prefix + msg);
+                Bukkit.broadcastMessage(PREFIX + msg);
             }, 5 * 20, this);
         } else {
             this.getLogger().log(Level.INFO, "No configuration changes in config.yml found.");
         }
 
-        String msg2 = "configuration changes found! Please visit the messages.yml. Make sure you don't have to change settings to resume error free usage";
+        String msg2 = "configuration changes found! Please visit the lang/"+LANGUAGE+".yml. Make sure you don't have to change settings to resume error free usage";
         if (ymlConfigMessages.getAccessor().hasChanges()) {
             this.getLogger().log(Level.WARNING, msg2);
             Scheduler.runLaterAsync(() -> {
                 this.getLogger().log(Level.WARNING, msg2);
-                Bukkit.broadcastMessage(prefix + msg2);
+                Bukkit.broadcastMessage(PREFIX + msg2);
             }, 5 * 20, this);
         } else {
-            this.getLogger().log(Level.INFO, "No configuration changes in messages.yml found.");
+            this.getLogger().log(Level.INFO, "No configuration changes in lang/"+LANGUAGE+".yml found.");
         }
 
         /**
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
-        new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", prefix, 30*60);
+        new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
 
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
@@ -203,7 +206,7 @@ public final class Main extends JavaPlugin {
         playerBridgeManager = new PlayerBridgeManager();
         commandManager = new CommandManager();
         potionSerializer = new PotionSerializer();
-        effectDataManager = new EffectDataManager();
+        effectDataManager = new de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager();
         advancementSerializer = new AdvancementSerializer();
         advancementDataManager = new AdvancementDataManager();
         statsSerializer = new StatsSerializer();

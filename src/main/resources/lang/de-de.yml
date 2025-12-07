@@ -1,0 +1,23 @@
+# Nachrichten prefix kann in der config.yml Datei geändert werden
+# Server MUSS neu gestartet werden, um Änderungen zu laden.
+
+no-database-config-error: "§cGib die fehlenden MySql Zugangsdaten in der mysql.yml Konfiguration ein. Starte daraufhin den Server neu, um das PLugin zu benutzen!"
+sync-success: "§7Deine Spielerdaten wurden§a erfolgreich§9 synchronisiert"
+sync-failed: "§cDeine Spielerdaten konnten nicht synchronisiert werden! Versuche es erneut und Kontaktiere umgehend das Adminteam!"
+created-data: "§7Deine Spielerdaten wurden§a erfolgreich §9erstellt"
+no-entry-protection-kick: "§cZugangskontrolle ist Aktiviert!§7 Du hast keine existierende Spielerdaten. Du kannst diesen Server nicht betreten, bevor du auf dem Hauptserver warst und deine Spielerdaten erstellt wurden! Wenn du denkst, dass es sich hierbei um ein Fehler handelt, kontaktiere das Adminteam!"
+
+# Commands
+permission-error: "§cDu hast nicht die korrekten Rechte, diesen Befehl auszuführen!"
+# Placeholder <all subcommands> -> {subcomands}
+unknown-subcommand-error: "§cUnbekannter sub-command. Verfügbare sub-commands: §7<{subcommands}>"
+no-subcommand-error: "§cKein sub-command angegeben. Verfügbare sub-commands:: §7<{subcommands}>"
+
+# Clear subcommand
+clear-wrong-usage: "§cFalsche Benutzung! Benutze: clear <player_name/*>"
+clear-player-not-found: "§cSpieler nicht Gefunden! §7Der angegebene Spieler kann nicht gefunden werden. Löschen fehlgeschlagen!"
+
+# Sync subcommand
+manual-sync-success: "§7Die Spielerdaten aller aktiven Spieler wurde§a erfolgreich§7 synchronisiert."
+manual-sync-wrong-usage: "§cFalsche Benutzung! Benutze: sync <player_name/*>"
+manual-sync-player-not-found: "§cSpieler nicht Gefunden! §7Der angegebene Spieler kann nicht gefunden werden. Synchronisation fehlgeschlagen!"

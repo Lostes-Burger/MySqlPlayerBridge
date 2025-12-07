@@ -4,6 +4,12 @@ prefix: "§7[§9MPB§7]§r "
 version: ""
 
 settings:
+  # Language (ISO 639-1 format)
+  # Format List: https://gist.github.com/josantonius/b455e315bc7f790d14b136d61d9ae469?permalink_comment_id=4825396#gistcomment-4825396
+  # Available translations are: German (de-de) ; English (en-us) ; Chinese (zh-cn)
+  # If you want other translations and can help provide them, please open an issue on GitHub https://github.com/Lostes-Burger/MySqlPlayerBridge
+  language: "en-us"
+
   # Change the root command (default /mpb <subcommand>)
   command-prefix: "mpb"
   # Should due to any reason the sync fail, the plugin will try again to save. Ff the sync fails again the Player will be kicked and their Data printed and Saved in a file in the plugin directory.
@@ -31,6 +37,8 @@ sync:
   enderChest: false
   amorSlots: false
   location: false
+  # Respawn location sync only useful when using location sync
+  respawn-location: false
   gamemode: false
   exp: false
   health: false
