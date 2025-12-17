@@ -30,10 +30,9 @@ public class PlayerBridgeManager implements Listener {
                 this.mySqlDataManager.applyDataToPlayer(player);
                 Main.playerManager.sendDataLoadedMessage(player);
             }else {
-                if(!NoEntryProtection.isTriggered(player)){
-                    this.mySqlDataManager.savePlayerData(player);
-                    Main.playerManager.sendCreatedDataMessage(player);
-                }
+                if(NoEntryProtection.isTriggered(player)) return;
+                this.mySqlDataManager.savePlayerData(player);
+                Main.playerManager.sendCreatedDataMessage(player);
             }
         }, Main.getInstance());
     }
