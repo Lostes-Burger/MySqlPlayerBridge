@@ -26,20 +26,29 @@ public class StatsDataManager {
         }
     }
 
-    public void savePlayer(Player player){
-        Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
-            String serialized = Main.statsSerializer.serialize(player);
-            try {
-                mySqlManager.setOrUpdateEntry(
-                        Main.TABLE_NAME_STATS,
-                        Map.of("uuid", player.getUniqueId().toString()),
-                        Map.of("stats", serialized)
-                );
-            } catch (MySqlError e) {
-                throw new RuntimeException(e);
-            }
-        }, Main.getInstance());
+    public void savePlayer(Player player, boolean async){
+        if(async){
+            Scheduler.runAsync(() -> {
+                this.save(player);
+            }, Main.getInstance());
+        }else {
+            this.save(player);
+        }
+
+    }
+
+    private void save(Player player){
+        if(!this.enabled) return;
+        String serialized = Main.statsSerializer.serialize(player);
+        try {
+            mySqlManager.setOrUpdateEntry(
+                    Main.TABLE_NAME_STATS,
+                    Map.of("uuid", player.getUniqueId().toString()),
+                    Map.of("stats", serialized)
+            );
+        } catch (MySqlError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void applyPlayer(Player player){

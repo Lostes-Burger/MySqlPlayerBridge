@@ -116,7 +116,7 @@ public class MySqlDataManager {
         return map;
     }
     
-    public void savePlayerData(Player player){
+    public void savePlayerData(Player player, boolean async){
         if(!this.hasData(player) && Main.config.getBoolean("settings.no-entry-protection")){ return; }
         HashMap<String, Object> data = this.getCurrentData(player);
         try {
@@ -129,10 +129,10 @@ public class MySqlDataManager {
             throw new RuntimeException(e);
         }
 
-        Main.effectDataManager.savePlayer(player);
-        Main.advancementDataManager.savePlayer(player);
-        Main.statsDataManager.savePlayer(player);
-        Main.hotbarSlotSelectionDataManager.savePlayer(player);
+        Main.effectDataManager.savePlayer(player, async);
+        Main.advancementDataManager.savePlayer(player, async);
+        Main.statsDataManager.savePlayer(player, async);
+        Main.hotbarSlotSelectionDataManager.savePlayer(player, async);
     }
 
 
@@ -254,13 +254,13 @@ public class MySqlDataManager {
 
     public void saveAllOnlinePlayers(){
         for (Player player : Bukkit.getOnlinePlayers()){
-            this.savePlayerData(player);
+            this.savePlayerData(player, false);
         }
     }
 
     public void saveAllOnlinePlayersAsync(){
         for (Player player : Bukkit.getOnlinePlayers()){
-            Scheduler.runAsync(() -> { this.savePlayerData(player);}, Main.getInstance());
+            Scheduler.runAsync(() -> { this.savePlayerData(player, true);}, Main.getInstance());
         }
     }
 }

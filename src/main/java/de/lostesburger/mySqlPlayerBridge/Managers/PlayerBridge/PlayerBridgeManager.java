@@ -31,7 +31,7 @@ public class PlayerBridgeManager implements Listener {
                 Main.playerManager.sendDataLoadedMessage(player);
             }else {
                 if(NoEntryProtection.isTriggered(player)) return;
-                this.mySqlDataManager.savePlayerData(player);
+                this.mySqlDataManager.savePlayerData(player, true);
                 Main.playerManager.sendCreatedDataMessage(player);
             }
         }, Main.getInstance());
@@ -40,7 +40,7 @@ public class PlayerBridgeManager implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLeave(PlayerQuitEvent event){
         Player player = event.getPlayer();
-        this.mySqlDataManager.savePlayerData(player);
+        this.mySqlDataManager.savePlayerData(player, false);
     }
 
     private void startAutoSyncTask(){

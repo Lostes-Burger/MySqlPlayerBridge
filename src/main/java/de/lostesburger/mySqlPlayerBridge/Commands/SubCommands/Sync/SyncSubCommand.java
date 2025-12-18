@@ -36,7 +36,7 @@ public class SyncSubCommand implements ServerCommand {
                 commandSender.sendMessage(Chat.getMessage("manual-sync-player-not-found"));
                 return;
             }
-            mySqlDataManager.savePlayerData(target);
+            mySqlDataManager.savePlayerData(target, true);
         }
         commandSender.sendMessage(Chat.getMessage("manual-sync-success"));
     }
