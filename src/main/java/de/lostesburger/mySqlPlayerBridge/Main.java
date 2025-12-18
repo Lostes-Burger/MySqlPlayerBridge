@@ -9,6 +9,7 @@ import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManag
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager.AdvancementDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.HotbarSelectionDataManager.HotbarSlotSelectionDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.SaturationDataManager.SaturationDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
@@ -44,7 +45,7 @@ public final class Main extends JavaPlugin {
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.6.0";
+    public static String version = "3.6.1";
     public static String pluginName = "MySqlPlayerBridge";
     public static String PREFIX;
     public static String LANGUAGE;
@@ -58,6 +59,7 @@ public final class Main extends JavaPlugin {
     public static AdvancementDataManager advancementDataManager;
     public static StatsDataManager statsDataManager;
     public static HotbarSlotSelectionDataManager hotbarSlotSelectionDataManager;
+    public static SaturationDataManager saturationDataManager;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -71,6 +73,7 @@ public final class Main extends JavaPlugin {
     public static String TABLE_NAME_ADVANCEMENTS;
     public static String TABLE_NAME_STATS;
     public static String TABLE_NAME_SELECTED_HOTBAR_SLOT;
+    public static String TABLE_NAME_SATURATION;
 
     public static SerializationType serializationType = SerializationType.NBT_API;
 
@@ -110,6 +113,7 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_ADVANCEMENTS = TABLE_NAME + "_advancements";
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
         TABLE_NAME_SELECTED_HOTBAR_SLOT = TABLE_NAME  + "_selected_hotbar_slot";
+        TABLE_NAME_SATURATION = TABLE_NAME + "_saturation";
 
         this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
@@ -216,6 +220,7 @@ public final class Main extends JavaPlugin {
         statsSerializer = new StatsSerializer();
         statsDataManager = new StatsDataManager();
         hotbarSlotSelectionDataManager = new HotbarSlotSelectionDataManager();
+        saturationDataManager = new SaturationDataManager();
     }
 
 

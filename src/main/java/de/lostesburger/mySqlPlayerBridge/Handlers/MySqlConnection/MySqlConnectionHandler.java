@@ -69,6 +69,11 @@ public class MySqlConnectionHandler {
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
                     MySqlManager.ColumnDefinition.integer("slot")
             );
+            mySqlManager.createTable(Main.TABLE_NAME_SATURATION,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.Float("saturation"),
+                    MySqlManager.ColumnDefinition.integer("food_level")
+            );
         } catch (MySqlError e) {
             new MySqlErrorHandler().onTableCreate();
             throw new RuntimeException(e);

@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class MySqlDataManager {
     public final MySqlManager mySqlManager;
+    public final boolean DEBUG = false;
 
     public MySqlDataManager(MySqlManager manager){
         mySqlManager = manager;
@@ -54,7 +55,6 @@ public class MySqlDataManager {
         int exp_level = player.getLevel();
         float exp = player.getExp();
         double health = player.getHealth();
-        float saturation = player.getSaturation();
         double money = 0.0;
         if(Main.modulesManager.syncVaultEconomy){
             money = Main.vaultManager.getBalance(player);
@@ -75,7 +75,7 @@ public class MySqlDataManager {
         map.put("exp_level", exp_level);
         map.put("exp", exp);
         map.put("health", health);
-        map.put("saturation",saturation);
+        //map.put("saturation",saturation);
         map.put("money", money);
         map.put("world", world);
         map.put("x", x);
@@ -133,6 +133,7 @@ public class MySqlDataManager {
         Main.advancementDataManager.savePlayer(player, async);
         Main.statsDataManager.savePlayer(player, async);
         Main.hotbarSlotSelectionDataManager.savePlayer(player, async);
+        Main.saturationDataManager.savePlayer(player, async);
     }
 
 
@@ -206,9 +207,6 @@ public class MySqlDataManager {
             if(modules.syncHealth){
                 player.setHealth((Double) data.get("health"));
             }
-            if(modules.syncSaturation){
-                player.setSaturation((Float) data.get("saturation"));
-            }
             if(modules.syncVaultEconomy){
                 Main.vaultManager.setBalance(player, (Double) data.get("money"));
             }
@@ -250,6 +248,7 @@ public class MySqlDataManager {
         Main.advancementDataManager.applyPlayer(player);
         Main.statsDataManager.applyPlayer(player);
         Main.hotbarSlotSelectionDataManager.applyPlayer(player);
+        Main.saturationDataManager.applyPlayer(player);
     }
 
     public void saveAllOnlinePlayers(){
