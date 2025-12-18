@@ -147,6 +147,7 @@ public final class Main extends JavaPlugin {
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
+        // New GitHubUpdateChecker with 403 rate-limit failsafe
         new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
 
