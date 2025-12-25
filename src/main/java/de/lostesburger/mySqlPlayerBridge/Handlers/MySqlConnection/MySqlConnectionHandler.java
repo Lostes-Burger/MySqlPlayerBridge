@@ -26,33 +26,13 @@ public class MySqlConnectionHandler {
             new MySqlErrorHandler().onManagerInitialize();
             throw new RuntimeException(e);
         }
-        createTables();
 
+        this.createTables();
         this.mySqlDataManager = new MySqlDataManager(mySqlManager);
     }
 
     private void createTables() {
         try {
-            mySqlManager.createTable(Main.TABLE_NAME,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("inventory"),
-                    MySqlManager.ColumnDefinition.longText("enderchest"),
-                    MySqlManager.ColumnDefinition.longText("armor"),
-                    MySqlManager.ColumnDefinition.text("gamemode"),
-                    MySqlManager.ColumnDefinition.integer("exp_level"),
-                    MySqlManager.ColumnDefinition.Float("exp"),
-                    MySqlManager.ColumnDefinition.doubLe("health"),
-                    MySqlManager.ColumnDefinition.Float("saturation"),
-                    MySqlManager.ColumnDefinition.doubLe("money"),
-                    MySqlManager.ColumnDefinition.text("world"),
-                    MySqlManager.ColumnDefinition.doubLe("x"),
-                    MySqlManager.ColumnDefinition.doubLe("y"),
-                    MySqlManager.ColumnDefinition.doubLe("z"),
-                    MySqlManager.ColumnDefinition.Float("yaw"),
-                    MySqlManager.ColumnDefinition.Float("pitch"),
-                    MySqlManager.ColumnDefinition.text("server_type"),
-                    MySqlManager.ColumnDefinition.text("serialization_type")
-            );
             mySqlManager.createTable(Main.TABLE_NAME_EFFECTS,
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
                     MySqlManager.ColumnDefinition.longText("effects")
@@ -73,6 +53,55 @@ public class MySqlConnectionHandler {
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
                     MySqlManager.ColumnDefinition.Float("saturation"),
                     MySqlManager.ColumnDefinition.integer("food_level")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_LOCATION,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.text("world"),
+                    MySqlManager.ColumnDefinition.doubLe("x"),
+                    MySqlManager.ColumnDefinition.doubLe("y"),
+                    MySqlManager.ColumnDefinition.doubLe("z"),
+                    MySqlManager.ColumnDefinition.Float("yaw"),
+                    MySqlManager.ColumnDefinition.Float("pitch")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_EXP,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.integer("exp_level"),
+                    MySqlManager.ColumnDefinition.Float("exp")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_GAMEMODE,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.text("gamemode")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_INVENTORY,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("inventory")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_ARMOR,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("armor")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_ENDERCHEST,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.longText("enderchest")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_HEALTH,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.doubLe("health"),
+                    MySqlManager.ColumnDefinition.doubLe("max_health"),
+                    MySqlManager.ColumnDefinition.Boolean("health_scaled"),
+                    MySqlManager.ColumnDefinition.doubLe("health_scale")
+            );
+
+            mySqlManager.createTable(Main.TABLE_NAME_MONEY,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.doubLe("money")
             );
         } catch (MySqlError e) {
             new MySqlErrorHandler().onTableCreate();
