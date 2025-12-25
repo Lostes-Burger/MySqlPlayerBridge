@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.SaturationDataManager;
+package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Saturation;
 
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
@@ -37,15 +37,29 @@ public class SaturationDataManager {
 
     }
 
+    public void saveManual(String uuid, float saturation, int foodlevel, boolean async){
+        if(async){
+            Scheduler.runAsync(() -> {
+                this.insertToMySql(uuid, saturation, foodlevel);
+            }, Main.getInstance());
+        }else {
+            this.insertToMySql(uuid, saturation, foodlevel);
+        }
+    }
+
     private void save(Player player){
         if(!this.enabled) return;
+        this.insertToMySql(player.getUniqueId().toString(), player.getSaturation(), player.getFoodLevel());
+    }
+
+    private void insertToMySql(String uuid, float saturation, int foodlevel){
         try {
             mySqlManager.setOrUpdateEntry(
                     Main.TABLE_NAME_SATURATION,
-                    Map.of("uuid", player.getUniqueId().toString()),
+                    Map.of("uuid", uuid),
                     Map.of(
-                            "saturation", player.getSaturation(),
-                            "food_level", player.getFoodLevel()
+                            "saturation", saturation,
+                            "food_level", foodlevel
                     )
             );
         } catch (MySqlError e) {

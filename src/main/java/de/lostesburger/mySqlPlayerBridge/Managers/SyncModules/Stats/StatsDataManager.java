@@ -1,13 +1,15 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager;
+package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Stats;
 
 
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
+import java.util.UUID;
 
 public class StatsDataManager {
     private final boolean enabled;
@@ -37,14 +39,28 @@ public class StatsDataManager {
 
     }
 
+    public void saveManual(UUID uuid, String serializedStats, boolean async){
+        if(async){
+            Scheduler.runAsync(() -> {
+                this.insertToMySql(uuid.toString(), serializedStats);
+            }, Main.getInstance());
+        }else {
+            this.insertToMySql(uuid.toString(), serializedStats);
+        }
+    }
+
     private void save(Player player){
         if(!this.enabled) return;
-        String serialized = Main.statsSerializer.serialize(player);
+        String serialized = SyncManager.statsSerializer.serialize(player);
+        this.insertToMySql(player.getUniqueId().toString(), serialized);
+    }
+
+    private void insertToMySql(String uuid, String serializedStats){
         try {
             mySqlManager.setOrUpdateEntry(
                     Main.TABLE_NAME_STATS,
-                    Map.of("uuid", player.getUniqueId().toString()),
-                    Map.of("stats", serialized)
+                    Map.of("uuid", uuid),
+                    Map.of("stats", serializedStats)
             );
         } catch (MySqlError e) {
             throw new RuntimeException(e);
@@ -67,7 +83,7 @@ public class StatsDataManager {
             if(entry.isEmpty()) return;
 
             String serialized = (String) entry.get("stats");
-            Main.statsSerializer.deserialize(serialized, player, true);
+            SyncManager.statsSerializer.deserialize(serialized, player, true);
         }, Main.getInstance());
 
     }

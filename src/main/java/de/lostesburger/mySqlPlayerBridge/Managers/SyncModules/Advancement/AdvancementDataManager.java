@@ -1,23 +1,25 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.HotbarSelectionDataManager;
+package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Advancement;
 
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.entity.Player;
+
 import java.util.Map;
 
-public class HotbarSlotSelectionDataManager {
+public class AdvancementDataManager {
     private final boolean enabled;
     private final MySqlManager mySqlManager;
 
-    public HotbarSlotSelectionDataManager(){
-        this.enabled = Main.modulesManager.syncSelectedHotbarSlot;
+    public AdvancementDataManager() {
+        this.enabled = Main.modulesManager.syncAdvancements;
         this.mySqlManager = Main.mySqlConnectionHandler.getManager();
 
         try {
-            if(!this.mySqlManager.tableExists(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT)){
-                throw new RuntimeException("Selected hotbar slot mysql table is missing!");
+            if(!this.mySqlManager.tableExists(Main.TABLE_NAME_ADVANCEMENTS)){
+                throw new RuntimeException("Advancements mysql table is missing!");
             }
         } catch (MySqlError e) {
             throw new RuntimeException(e);
@@ -25,24 +27,37 @@ public class HotbarSlotSelectionDataManager {
     }
 
     public void savePlayer(Player player, boolean async){
-        if(async){
+        if(async) {
             Scheduler.runAsync(() -> {
                 this.save(player);
             }, Main.getInstance());
-        }else {
+        } else {
             this.save(player);
         }
+    }
 
-
+    public void insertToMySql(String uuid, String serializedAdvancements, boolean async){
+        if(async) {
+            Scheduler.runAsync(() -> {
+                this.insertToMySql(uuid, serializedAdvancements);
+            }, Main.getInstance());
+        } else {
+            this.insertToMySql(uuid, serializedAdvancements);
+        }
     }
 
     private void save(Player player){
         if(!this.enabled) return;
+        String serialized = SyncManager.advancementSerializer.serialize(player);
+        this.insertToMySql(player.getUniqueId().toString(), serialized);
+    }
+
+    private void insertToMySql(String uuid, String serializedAdvancements){
         try {
             mySqlManager.setOrUpdateEntry(
-                    Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
-                    Map.of("uuid", player.getUniqueId().toString()),
-                    Map.of("slot", player.getInventory().getHeldItemSlot())
+                    Main.TABLE_NAME_ADVANCEMENTS,
+                    Map.of("uuid", uuid),
+                    Map.of("advancements", serializedAdvancements)
             );
         } catch (MySqlError e) {
             throw new RuntimeException(e);
@@ -55,7 +70,7 @@ public class HotbarSlotSelectionDataManager {
 
             Map<String, Object> entry;
             try {
-                entry = mySqlManager.getEntry(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
+                entry = mySqlManager.getEntry(Main.TABLE_NAME_ADVANCEMENTS,
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
@@ -63,22 +78,10 @@ public class HotbarSlotSelectionDataManager {
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
-            int slot = (Integer) entry.get("slot");
 
-            Scheduler.run(() -> {
-                this.setHotbarSlot(player, slot);
-            }, Main.getInstance());
-
+            String serialized = (String) entry.get("advancements");
+            SyncManager.advancementSerializer.deserialize(serialized, player, true);
         }, Main.getInstance());
 
     }
-
-    private void setHotbarSlot(Player player, int slot) {
-        if (slot >= 0 && slot < 9) {
-            player.getInventory().setHeldItemSlot(slot);
-        } else {
-            throw new RuntimeException("Invalid hotbar slot");
-        }
-    }
-
 }

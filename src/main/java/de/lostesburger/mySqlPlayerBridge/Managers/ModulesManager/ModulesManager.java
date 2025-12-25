@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Managers.Modules;
+package de.lostesburger.mySqlPlayerBridge.Managers.ModulesManager;
 
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.configuration.file.FileConfiguration;
