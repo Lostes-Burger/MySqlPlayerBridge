@@ -2,8 +2,9 @@ package de.lostesburger.mySqlPlayerBridge;
 
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
+import de.lostesburger.mySqlPlayerBridge.Handlers.InfoData.InfoDataHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
-import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlMigrationHandler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Migration.MySqlMigrationHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.ModulesManager.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
@@ -52,6 +53,7 @@ public final class Main extends JavaPlugin {
     public static CommandManager commandManager;
     public static SyncManager syncManager;
     public static MySqlMigrationHandler mySqlMigrationHandler;
+    public static InfoDataHandler infoDataHandler;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -82,6 +84,7 @@ public final class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
+        infoDataHandler = new InfoDataHandler();
 
         this.getLogger().log(Level.WARNING, "Starting MySqlPlayerBridge plugin v" + version);
         serverType = Bukkit.getServer().getVersion();
@@ -237,6 +240,16 @@ public final class Main extends JavaPlugin {
             playerManager = new PlayerManager();
             playerBridgeManager = new PlayerBridgeManager();
             commandManager = new CommandManager();
+
+            /**
+             * Info Data & Debug
+             */
+            boolean migrated = mySqlMigrationHandler.migration.isCOMPLETED();
+            infoDataHandler.addInfo("migrated", migrated);
+            if(migrated){
+                infoDataHandler.addInfo("migration_type", mySqlMigrationHandler.migration.getMigrationType().toString());
+            }
+            infoDataHandler.saveData();
         });
     }
 

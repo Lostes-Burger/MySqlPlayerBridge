@@ -4,6 +4,7 @@ import de.craftcore.craftcore.global.mysql.MySQL;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.InfoData.InfoDataHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 
@@ -33,6 +34,11 @@ public class MySqlConnectionHandler {
 
     private void createTables() {
         try {
+            mySqlManager.createTable(InfoDataHandler.TABLE_NAME,
+                    MySqlManager.ColumnDefinition.text("date"),
+                    MySqlManager.ColumnDefinition.longText("data")
+            );
+
             mySqlManager.createTable(Main.TABLE_NAME_EFFECTS,
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
                     MySqlManager.ColumnDefinition.longText("effects")
