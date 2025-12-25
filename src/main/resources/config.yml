@@ -32,6 +32,9 @@ settings:
   # Permission needed to perform admin commands
   admin-permission: "mbp.admin"
 
+  # Suppress all warnings issued by the plugin. Enabling this suppression is not recommended.
+  suppress-warnings: false
+
 sync:
   inventory: false
   # synchronizes a player's hotbar slot selection
@@ -54,8 +57,3 @@ sync:
 syncTask:
   # Delay in Seconds
   delay: 90
-
-# Currently only supporting NBTAPI mode
-serialization:
-  # Available modes: NBTAPI ; BUKKIT
-  mode: "NBTAPI"
