@@ -1,4 +1,4 @@
-package de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection;
+package de.lostesburger.mySqlPlayerBridge.Handlers.Migration;
 
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
@@ -18,6 +18,7 @@ import java.util.logging.Level;
 public class MySqlMigrationHandler implements Listener {
     private final MySqlManager mySqlManager;
     public boolean RUNNING_MIGRATION;
+    public Migration migration;
 
     public MySqlMigrationHandler(){
         mySqlManager = Main.mySqlConnectionHandler.getManager();
@@ -107,6 +108,8 @@ public class MySqlMigrationHandler implements Listener {
         } catch (MySqlError e) {
             throw new RuntimeException(e);
         }
+
+        migration = new Migration(true, MigrationType.LegacyDatabase);
     }
 
     @EventHandler
