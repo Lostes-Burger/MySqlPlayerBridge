@@ -1,20 +1,15 @@
 package de.lostesburger.mySqlPlayerBridge;
+
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlMigrationHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.ModulesManager.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager.AdvancementDataManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.HotbarSelectionDataManager.HotbarSlotSelectionDataManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.SaturationDataManager.SaturationDataManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager.StatsDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
-import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
-import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.PotionSerializer;
-import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.StatsSerializer;
 import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
@@ -45,7 +40,7 @@ public final class Main extends JavaPlugin {
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.6.1";
+    public static String version = "3.7.0";
     public static String pluginName = "MySqlPlayerBridge";
     public static String PREFIX;
     public static String LANGUAGE;
@@ -55,18 +50,13 @@ public final class Main extends JavaPlugin {
     public static PlayerManager playerManager;
     public static PlayerBridgeManager playerBridgeManager;
     public static CommandManager commandManager;
-    public static EffectDataManager effectDataManager;
-    public static AdvancementDataManager advancementDataManager;
-    public static StatsDataManager statsDataManager;
-    public static HotbarSlotSelectionDataManager hotbarSlotSelectionDataManager;
-    public static SaturationDataManager saturationDataManager;
+    public static SyncManager syncManager;
+    public static MySqlMigrationHandler mySqlMigrationHandler;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
     public static NBTSerializer nbtSerializer = null;
-    public static PotionSerializer potionSerializer;
-    public static AdvancementSerializer advancementSerializer;
-    public static StatsSerializer statsSerializer;
+    public static boolean SUPPRESS_WARNINGS = false;
 
     public static String TABLE_NAME = "player_data";
     public static String TABLE_NAME_EFFECTS;
@@ -74,6 +64,16 @@ public final class Main extends JavaPlugin {
     public static String TABLE_NAME_STATS;
     public static String TABLE_NAME_SELECTED_HOTBAR_SLOT;
     public static String TABLE_NAME_SATURATION;
+
+    public static String TABLE_NAME_LOCATION;
+    public static String TABLE_NAME_EXP;
+    public static String TABLE_NAME_GAMEMODE;
+    public static String TABLE_NAME_INVENTORY;
+    public static String TABLE_NAME_ARMOR;
+    public static String TABLE_NAME_ENDERCHEST;
+    public static String TABLE_NAME_HEALTH;
+    public static String TABLE_NAME_MONEY;
+
 
     public static SerializationType serializationType = SerializationType.NBT_API;
 
@@ -100,6 +100,7 @@ public final class Main extends JavaPlugin {
         config = ymlConfig.getConfig();
         PREFIX = config.getString("prefix");
         LANGUAGE = config.getString("settings.language");
+        SUPPRESS_WARNINGS = config.getBoolean("settings.suppress-warnings", false);
         config.set("version", version);
         try {
             Main.config.save(new File(Main.getInstance().getDataFolder(), "config.yml"));
@@ -114,6 +115,15 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
         TABLE_NAME_SELECTED_HOTBAR_SLOT = TABLE_NAME  + "_selected_hotbar_slot";
         TABLE_NAME_SATURATION = TABLE_NAME + "_saturation";
+
+        TABLE_NAME_LOCATION = TABLE_NAME + "_location";
+        TABLE_NAME_EXP = TABLE_NAME + "_exp";
+        TABLE_NAME_GAMEMODE = TABLE_NAME + "_gamemode";
+        TABLE_NAME_INVENTORY = TABLE_NAME + "_inventory";
+        TABLE_NAME_ARMOR = TABLE_NAME + "_armor";
+        TABLE_NAME_ENDERCHEST = TABLE_NAME + "_enderchest";
+        TABLE_NAME_HEALTH = TABLE_NAME + "_health";
+        TABLE_NAME_MONEY = TABLE_NAME + "_money";
 
         this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
@@ -149,8 +159,8 @@ public final class Main extends JavaPlugin {
         this.getLogger().log(Level.INFO, "Checking for updates ...");
         // New GitHubUpdateChecker with 403 rate-limit failsafe
         new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
-        this.getLogger().log(Level.INFO, "Checking database Configuration...");
 
+        this.getLogger().log(Level.INFO, "Checking database Configuration...");
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
             Bukkit.broadcastMessage(Chat.getMessage("no-database-config-error"));
             return;
@@ -209,22 +219,26 @@ public final class Main extends JavaPlugin {
         );
 
         /**
-         * Other Managers
+         * SyncModules
          */
-        playerManager = new PlayerManager();
-        playerBridgeManager = new PlayerBridgeManager();
-        commandManager = new CommandManager();
-        potionSerializer = new PotionSerializer();
-        effectDataManager = new de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager();
-        advancementSerializer = new AdvancementSerializer();
-        advancementDataManager = new AdvancementDataManager();
-        statsSerializer = new StatsSerializer();
-        statsDataManager = new StatsDataManager();
-        hotbarSlotSelectionDataManager = new HotbarSlotSelectionDataManager();
-        saturationDataManager = new SaturationDataManager();
+        syncManager = new SyncManager();
+
+        /**
+         * Migration
+         */
+        this.getLogger().log(Level.INFO, "Checking for migrations...");
+        mySqlMigrationHandler = new MySqlMigrationHandler();
+
+
+        /**
+         * Managers
+         */
+        mySqlMigrationHandler.runAfterCheck(() -> {
+            playerManager = new PlayerManager();
+            playerBridgeManager = new PlayerBridgeManager();
+            commandManager = new CommandManager();
+        });
     }
-
-
 
     public static Plugin getInstance(){return instance;}
 
