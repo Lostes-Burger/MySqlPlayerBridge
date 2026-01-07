@@ -11,11 +11,11 @@ public class PlayerManager {
 
 
     public static void sendCreatedDataMessage(Player player){
-        Log.info(CC.colorize("created-data"));
+        Log.info(CC.colorize(Chat.getMessage("created-data")));
     }
 
     public static void sendDataLoadedMessage(Player player){
-        Log.info(CC.colorize("sync-success"));
+        Log.info(CC.colorize(Chat.getMessage("sync-success")));
     }
 
     public static void syncFailedKick(Player player){
