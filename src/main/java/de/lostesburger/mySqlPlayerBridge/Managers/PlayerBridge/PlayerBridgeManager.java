@@ -25,22 +25,26 @@ public class PlayerBridgeManager implements Listener {
     public void onPlayerJoin(PlayerJoinEvent event){
         Player player = event.getPlayer();
 
-        Scheduler.runAsync(() -> {
-            if(this.mySqlDataManager.hasData(player)){
+        waitForDataLoad(player, () -> {
+            if (this.mySqlDataManager.hasData(player)) {
                 this.mySqlDataManager.applyDataToPlayer(player);
                 Main.playerManager.sendDataLoadedMessage(player);
-            }else {
-                if(NoEntryProtection.isTriggered(player)) return;
+            } else {
+                if (NoEntryProtection.isTriggered(player)) return;
                 this.mySqlDataManager.savePlayerData(player, true);
                 Main.playerManager.sendCreatedDataMessage(player);
             }
-        }, Main.getInstance());
+        });
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLeave(PlayerQuitEvent event){
         Player player = event.getPlayer();
-        this.mySqlDataManager.savePlayerData(player, false);
+
+        Scheduler.runAsync(() -> {
+            this.mySqlDataManager.savePlayerData(player, false);
+        }, Main.getInstance());
+
     }
 
     private void startAutoSyncTask(){
@@ -52,6 +56,21 @@ public class PlayerBridgeManager implements Listener {
         }, Main.modulesManager.syncTaskDelay, Main.modulesManager.syncTaskDelay, Main.getInstance());
         Main.schedulers.add(task);
     }
+
+
+    private void waitForDataLoad(Player player, Runnable onDataLoaded) {
+        Scheduler.runAsync(() -> {
+            while (!this.mySqlDataManager.hasData(player)) {
+                try {
+                    Thread.sleep(100);  // 等待数据加载完成
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            onDataLoaded.run();  // 数据加载完成后再执行切换
+        }, Main.getInstance());
+    }
+
 
 
 }
