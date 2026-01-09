@@ -62,12 +62,12 @@ public class PlayerBridgeManager implements Listener {
         Scheduler.runAsync(() -> {
             while (!this.mySqlDataManager.hasData(player)) {
                 try {
-                    Thread.sleep(100);  // 等待数据加载完成
+                    Thread.sleep(300);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            onDataLoaded.run();  // 数据加载完成后再执行切换
+            onDataLoaded.run();
         }, Main.getInstance());
     }
 
