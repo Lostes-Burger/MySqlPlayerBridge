@@ -5,6 +5,7 @@ import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBehavior.PlayerBehaviorManager;
 import de.lostesburger.mySqlPlayerBridge.NoEntryProtection.NoEntryProtection;
+import de.lostesburger.mySqlPlayerBridge.Utils.CC;
 import de.lostesburger.mySqlPlayerBridge.Utils.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.Sound;
@@ -33,9 +34,17 @@ public class PlayerBridgeManager implements Listener {
             if (this.mySqlDataManager.hasData(player)) {
 
                 Log.info(Main.saveStutsDataManager.getStatus(player));
+                int i = 0;
                 while (!Main.saveStutsDataManager.getStatus(player).equals("OK")) {
                     try {
                         Thread.sleep(1);
+                        i++;
+                        if (i > 3000) {
+
+                            player.kickPlayer(CC.colorize("&c加载异常"));
+                            return;
+
+                        }
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
