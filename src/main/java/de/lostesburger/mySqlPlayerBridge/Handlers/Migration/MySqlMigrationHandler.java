@@ -7,9 +7,11 @@ import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.HandlerList;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -18,7 +20,6 @@ import java.util.logging.Level;
 public class MySqlMigrationHandler implements Listener {
     private final MySqlManager mySqlManager;
     public boolean RUNNING_MIGRATION;
-    public Migration migration;
 
     public MySqlMigrationHandler(){
         mySqlManager = Main.mySqlConnectionHandler.getManager();
@@ -29,20 +30,58 @@ public class MySqlMigrationHandler implements Listener {
         }
         if(RUNNING_MIGRATION){
             Main.getInstance().getLogger().warning("[Migration detected] [Database structure changed] The database structure has changed! The server will now begin running the migration. All player connections will be terminated and future incoming connections refused until the migration is done!");
+            Main.getInstance().getLogger().warning("[Migration detected] [Checking conditions] Checking if other Server is currently handling the migration...");
+
             Bukkit.getServer().getPluginManager().registerEvents(this, Main.getInstance());
             Bukkit.getOnlinePlayers().forEach(player -> {
-                player.kickPlayer("§c[MySqlPlayerBridge] Server is running database migration -> Try again later!");
+                player.kickPlayer("§c[MySqlPlayerBridge] Running database migration -> Try again later!");
             });
 
-            this.startMigration();
+            if(this.isRunningMigration()){
+                Main.getInstance().getLogger().warning("[Database Migration] [Failed conditions] Another Server is currently handling the migration process. This server will wait until the migration is finished!");
+
+                final Scheduler.Task[] taskHolder = new Scheduler.Task[1];
+                final int[] time = {0};
+                taskHolder[0] = Scheduler.runTimerAsync(() -> {
+                    time[0]++;
+                    Main.getInstance().getLogger().warning("[Database Migration] [Waiting] Another Server is currently handling the migration process. This server will wait until the migration is finished! Waited for "+ time[0]*5 +"seconds");
+                    this.RUNNING_MIGRATION = this.isRunningMigration();
+
+                    if(!this.RUNNING_MIGRATION){
+                        Main.getInstance().getLogger().warning("[Database Migration] [Migration done] Migration finished by other server. Waited for "+ time[0]*5 +"seconds. Starting plugin now...");
+                        taskHolder[0].cancel();
+                    }
+
+                }, 5*20, 5*20, Main.getInstance());
+            }else {
+                Main.getInstance().getLogger().warning("[Database Migration] [Passed conditions] All conditions passed! This Server will now handle the database migration. DO NOT SHUT DOWN WHILE MIGRATING!");
+                this.startMigration();
+            }
+
+
         }
     }
 
+    private boolean isRunningMigration(){
+        Map<String, Object> entry;
+        try {
+            entry = mySqlManager.getEntry(Main.TABLE_NAME_MIGRATION, Map.of("migration", "migration"));
+        } catch (MySqlError e) {
+            throw new RuntimeException(e);
+        }
+
+        if(entry == null) return false;
+        if(entry.isEmpty()) return false;
+        return (boolean) entry.get("running_migration");
+    }
     public void runAfterCheck(Runnable runnable) {
         final Scheduler.Task[] taskHolder = new Scheduler.Task[1];
 
         taskHolder[0] = Scheduler.runTimerAsync(() -> {
             if (!RUNNING_MIGRATION) {
+                Scheduler.run(() -> {
+                    HandlerList.unregisterAll(this);
+                }, Main.getInstance());
                 runnable.run();
                 taskHolder[0].cancel();
             }
@@ -51,6 +90,13 @@ public class MySqlMigrationHandler implements Listener {
 
 
     private void startMigration(){
+        long timestamp = Instant.now().toEpochMilli();
+        try {
+            mySqlManager.setOrUpdateEntry(Main.TABLE_NAME_MIGRATION, Map.of("migration", "migration"), Map.of("running_migration", true, "timestamp", timestamp));
+        } catch (MySqlError e) {
+            throw new RuntimeException(e);
+        }
+
         List<Map<String, Object>> entries;
         try {
             entries = mySqlManager.getAllEntries(Main.TABLE_NAME);
@@ -62,7 +108,7 @@ public class MySqlMigrationHandler implements Listener {
         Scheduler.runAsync(() -> {
             int counter = 0;
             int max = entries.size();
-            Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Staring] Starting database migration now! Data to migrate: "+max);
+            Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Starting] Starting database migration now! Data to migrate: "+max);
             Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Backup] If any problems should occur the old data will be saved. The mysql table will be renamed to"+Main.TABLE_NAME+"_backup.");
 
 
@@ -109,7 +155,13 @@ public class MySqlMigrationHandler implements Listener {
             throw new RuntimeException(e);
         }
 
-        migration = new Migration(true, MigrationType.LegacyDatabase);
+        Main.getInstance().getLogger().warning("[Database Migration] [Completed] Migration completed successfully! Players are now able to join.");
+        try {
+            mySqlManager.setOrUpdateEntry(Main.TABLE_NAME_MIGRATION, Map.of("running_migration", "migration"), Map.of("running_migration", false));
+        } catch (MySqlError e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @EventHandler

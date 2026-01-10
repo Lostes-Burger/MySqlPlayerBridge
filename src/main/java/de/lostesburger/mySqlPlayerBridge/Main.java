@@ -2,7 +2,6 @@ package de.lostesburger.mySqlPlayerBridge;
 
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
-import de.lostesburger.mySqlPlayerBridge.Handlers.InfoData.InfoDataHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Migration.MySqlMigrationHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
@@ -53,7 +52,6 @@ public final class Main extends JavaPlugin {
     public static CommandManager commandManager;
     public static SyncManager syncManager;
     public static MySqlMigrationHandler mySqlMigrationHandler;
-    public static InfoDataHandler infoDataHandler;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -61,12 +59,14 @@ public final class Main extends JavaPlugin {
     public static boolean SUPPRESS_WARNINGS = false;
 
     public static String TABLE_NAME = "player_data";
+    public static String TABLE_NAME_REGISTERED_PLAYERS;
+    public static String TABLE_NAME_MIGRATION;
+
     public static String TABLE_NAME_EFFECTS;
     public static String TABLE_NAME_ADVANCEMENTS;
     public static String TABLE_NAME_STATS;
     public static String TABLE_NAME_SELECTED_HOTBAR_SLOT;
     public static String TABLE_NAME_SATURATION;
-
     public static String TABLE_NAME_LOCATION;
     public static String TABLE_NAME_EXP;
     public static String TABLE_NAME_GAMEMODE;
@@ -84,7 +84,6 @@ public final class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-        infoDataHandler = new InfoDataHandler();
 
         this.getLogger().log(Level.WARNING, "Starting MySqlPlayerBridge plugin v" + version);
         serverType = Bukkit.getServer().getVersion();
@@ -113,12 +112,14 @@ public final class Main extends JavaPlugin {
         BukkitYMLConfig ymlConfigMySQL = new BukkitYMLConfig(this, "mysql.yml");
         mysqlConf = ymlConfigMySQL.getConfig();
         TABLE_NAME = mysqlConf.getString("main-table-name");
+        TABLE_NAME_REGISTERED_PLAYERS = "mpb_registered_players";
+        TABLE_NAME_MIGRATION = "mpb_migration";
+
         TABLE_NAME_EFFECTS = TABLE_NAME + "_potion_effects";
         TABLE_NAME_ADVANCEMENTS = TABLE_NAME + "_advancements";
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
         TABLE_NAME_SELECTED_HOTBAR_SLOT = TABLE_NAME  + "_selected_hotbar_slot";
         TABLE_NAME_SATURATION = TABLE_NAME + "_saturation";
-
         TABLE_NAME_LOCATION = TABLE_NAME + "_location";
         TABLE_NAME_EXP = TABLE_NAME + "_exp";
         TABLE_NAME_GAMEMODE = TABLE_NAME + "_gamemode";
@@ -240,16 +241,6 @@ public final class Main extends JavaPlugin {
             playerManager = new PlayerManager();
             playerBridgeManager = new PlayerBridgeManager();
             commandManager = new CommandManager();
-
-            /**
-             * Info Data & Debug
-             */
-            boolean migrated = mySqlMigrationHandler.migration.isCOMPLETED();
-            infoDataHandler.addInfo("migrated", migrated);
-            if(migrated){
-                infoDataHandler.addInfo("migration_type", mySqlMigrationHandler.migration.getMigrationType().toString());
-            }
-            infoDataHandler.saveData();
         });
     }
 
