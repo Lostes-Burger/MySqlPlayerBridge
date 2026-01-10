@@ -37,11 +37,13 @@ public class PlayerBridgeManager implements Listener {
                 int i = 0;
                 while (!Main.saveStutsDataManager.getStatus(player).equals("OK")) {
                     try {
-                        Thread.sleep(1);
+                        Thread.sleep(10);
                         i++;
-                        if (i > 3000) {
-
-                            player.kickPlayer(CC.colorize("&c加载异常"));
+                        if (i > 300) {
+                            Log.info("超时，玩家被踢出");
+                            Bukkit.getScheduler().runTask(Main.getInstance(), () -> {
+                                player.kickPlayer(CC.colorize("&c加载异常"));
+                            });
                             return;
 
                         }
