@@ -74,6 +74,10 @@ public class MySqlConnectionHandler {
                     MySqlManager.ColumnDefinition.Float("saturation"),
                     MySqlManager.ColumnDefinition.integer("food_level")
             );
+            mySqlManager.createTable(Main.TABLE_SAVE_STATUS,
+                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.varchar("status",10)
+            );
         } catch (MySqlError e) {
             new MySqlErrorHandler().onTableCreate();
             throw new RuntimeException(e);

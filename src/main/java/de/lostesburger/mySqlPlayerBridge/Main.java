@@ -5,11 +5,13 @@ import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectio
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Modules.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBehavior.PlayerBehaviorManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.AdvancementDataManager.AdvancementDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.HotbarSelectionDataManager.HotbarSlotSelectionDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.SaturationDataManager.SaturationDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.SaveStutsDataManager.SaveStutsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.StatsDataManager.StatsDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.Serialization.AdvancementSerializer;
@@ -54,12 +56,14 @@ public final class Main extends JavaPlugin {
     public static ModulesManager modulesManager;
     public static PlayerManager playerManager;
     public static PlayerBridgeManager playerBridgeManager;
+    public static PlayerBehaviorManager playerBehaviorManager;
     public static CommandManager commandManager;
     public static EffectDataManager effectDataManager;
     public static AdvancementDataManager advancementDataManager;
     public static StatsDataManager statsDataManager;
     public static HotbarSlotSelectionDataManager hotbarSlotSelectionDataManager;
     public static SaturationDataManager saturationDataManager;
+    public static SaveStutsDataManager saveStutsDataManager;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -74,6 +78,7 @@ public final class Main extends JavaPlugin {
     public static String TABLE_NAME_STATS;
     public static String TABLE_NAME_SELECTED_HOTBAR_SLOT;
     public static String TABLE_NAME_SATURATION;
+    public static String TABLE_SAVE_STATUS;
 
     public static SerializationType serializationType = SerializationType.NBT_API;
 
@@ -114,6 +119,7 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_STATS = TABLE_NAME + "_stats";
         TABLE_NAME_SELECTED_HOTBAR_SLOT = TABLE_NAME  + "_selected_hotbar_slot";
         TABLE_NAME_SATURATION = TABLE_NAME + "_saturation";
+        TABLE_SAVE_STATUS = TABLE_NAME + "_save_status";
 
         this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
@@ -213,6 +219,7 @@ public final class Main extends JavaPlugin {
          */
         playerManager = new PlayerManager();
         playerBridgeManager = new PlayerBridgeManager();
+        playerBehaviorManager = new PlayerBehaviorManager();
         commandManager = new CommandManager();
         potionSerializer = new PotionSerializer();
         effectDataManager = new de.lostesburger.mySqlPlayerBridge.Managers.SyncManagers.EffectDataManager.EffectDataManager();
@@ -222,6 +229,7 @@ public final class Main extends JavaPlugin {
         statsDataManager = new StatsDataManager();
         hotbarSlotSelectionDataManager = new HotbarSlotSelectionDataManager();
         saturationDataManager = new SaturationDataManager();
+        saveStutsDataManager = new SaveStutsDataManager();
     }
 
 
