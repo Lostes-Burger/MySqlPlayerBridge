@@ -35,7 +35,9 @@ public class MySqlConnectionHandler {
         try {
             mySqlManager.createTable(Main.TABLE_NAME_REGISTERED_PLAYERS,
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.text("timestamp")
+                    MySqlManager.ColumnDefinition.text("timestamp"),
+                    MySqlManager.ColumnDefinition.Boolean("online"),
+                    MySqlManager.ColumnDefinition.Boolean("cracked")
             );
             mySqlManager.createTable(Main.TABLE_NAME_MIGRATION,
                     MySqlManager.ColumnDefinition.text("migration"),
