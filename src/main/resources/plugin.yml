@@ -1,7 +1,6 @@
 name: MySqlPlayerBridge
 version: '${project.version}'
 main: de.lostesburger.mySqlPlayerBridge.Main
-api-version: '1.21'
 authors: [ LostesBurger ]
 folia-supported: true
 depend: [NBTAPI]
