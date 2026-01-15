@@ -4,6 +4,7 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
@@ -116,9 +117,9 @@ public class MySqlMigrationHandler implements Listener {
                 counter++;
 
                 String uuidString = (String) entry.get("uuid");
+                UUID uuid = UUID.fromString(uuidString);
                 Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] ["+counter+"/"+max+"] Running migration for player: "+uuidString);
 
-                UUID uuid = UUID.fromString(uuidString);
                 String inventory = (String) entry.get("inventory");
                 String armor = (String) entry.get("armor");
                 String enderchest = (String) entry.get("enderchest");
@@ -142,6 +143,7 @@ public class MySqlMigrationHandler implements Listener {
                 SyncManager.locationDataManager.saveManual(uuid, world, x, y, z, yaw, pitch, true);
                 SyncManager.gamemodeDataManager.saveManual(uuid, gamemode, true);
 
+                PlayerManager.registerPlayer(uuid);
                 Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] ["+counter+"/"+max+"] Completed migration for player: "+uuidString);
             }
         }, Main.getInstance());

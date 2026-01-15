@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.NoEntryProtection.NoEntryProtection;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -28,11 +29,12 @@ public class PlayerBridgeManager implements Listener {
         Scheduler.runAsync(() -> {
             if(this.mySqlDataManager.hasData(player)){
                 this.mySqlDataManager.applyDataToPlayer(player);
-                Main.playerManager.sendDataLoadedMessage(player);
+                PlayerManager.sendDataLoadedMessage(player);
             }else {
                 if(NoEntryProtection.isTriggered(player)) return;
+                PlayerManager.registerPlayer(player);
                 this.mySqlDataManager.savePlayerData(player, true);
-                Main.playerManager.sendCreatedDataMessage(player);
+                PlayerManager.sendCreatedDataMessage(player);
             }
         }, Main.getInstance());
     }

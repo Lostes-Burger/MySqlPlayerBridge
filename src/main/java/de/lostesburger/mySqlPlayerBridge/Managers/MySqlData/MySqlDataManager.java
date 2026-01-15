@@ -28,7 +28,7 @@ public class MySqlDataManager {
             if(Main.DEBUG){
                 System.out.println("Checking if player has data! Player: "+player.getName());
             }
-            return this.mySqlManager.entryExists(Main.TABLE_NAME_INVENTORY, Map.of("uuid", uuid.toString()));
+            return this.mySqlManager.entryExists(Main.TABLE_NAME_REGISTERED_PLAYERS, Map.of("uuid", uuid.toString()));
         } catch (MySqlError e) {
             new MySqlErrorHandler().hasPlayerData(player);
             throw new RuntimeException(e);
