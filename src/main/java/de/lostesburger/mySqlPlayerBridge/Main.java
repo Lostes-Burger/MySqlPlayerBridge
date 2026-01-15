@@ -41,7 +41,7 @@ public final class Main extends JavaPlugin {
     public static String serverType = "Unknown";
     private static Plugin instance;
     public static String version = "3.7.0";
-    public static String pluginName = "MySqlPlayerBridge";
+    public static String PLUGIN_NAME = "MySqlPlayerBridge";
     public static String PREFIX;
     public static String LANGUAGE;
 
@@ -85,8 +85,7 @@ public final class Main extends JavaPlugin {
     public void onEnable() {
         instance = this;
 
-        this.getLogger().log(Level.WARNING, "Starting MySqlPlayerBridge plugin v" + version);
-        serverType = Bukkit.getServer().getVersion();
+        this.getLogger().log(Level.WARNING, "Starting "+PLUGIN_NAME+" plugin v" + version);        serverType = Bukkit.getServer().getVersion();
         this.getLogger().log(Level.INFO, "Detected server type: " + serverType);
 
         if (Minecraft.isFolia()) {
@@ -129,7 +128,6 @@ public final class Main extends JavaPlugin {
         TABLE_NAME_HEALTH = TABLE_NAME + "_health";
         TABLE_NAME_MONEY = TABLE_NAME + "_money";
 
-        this.getLogger().log(Level.INFO, "Loading/Creating configuration ...");
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
         messages = ymlConfigMessages.getConfig();
 
@@ -248,7 +246,7 @@ public final class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
-        this.getLogger().log(Level.WARNING, "Stopping MySqlPlayerBridge plugin v"+version);
+        this.getLogger().log(Level.WARNING, "Stopping "+PLUGIN_NAME+" plugin v"+version);
         if(mySqlConnectionHandler != null){
             mySqlConnectionHandler.getMySqlDataManager().saveAllOnlinePlayers();
         }
