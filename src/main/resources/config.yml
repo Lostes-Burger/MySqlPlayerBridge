@@ -46,12 +46,12 @@ sync:
   exp: false
   health: false
   saturation: false
-  # This plugin only supports Vault as Economy Handler.
-  # Make sure Vault (https://www.spigotmc.org/resources/vault.34315/) is installed, before enabling this module.
-  vaultEconomy: false
   effects: false
   advancements: false
   statistics: false
+  # This plugin only supports Vault as Economy Handler.
+  # Make sure Vault (https://www.spigotmc.org/resources/vault.34315/) is installed, before enabling this module.
+  vaultEconomy: false
 
 # Create an automatic running task which saves all online player's inventory every given time.
 syncTask:
