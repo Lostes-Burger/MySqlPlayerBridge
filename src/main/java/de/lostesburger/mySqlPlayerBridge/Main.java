@@ -59,7 +59,8 @@ public final class Main extends JavaPlugin {
     public static boolean SUPPRESS_WARNINGS = false;
 
     public static String TABLE_NAME = "player_data";
-    public static String TABLE_NAME_REGISTERED_PLAYERS;
+    public static String TABLE_NAME_PLAYER_INDEX;
+    public static String TABLE_NAME_REGISTERED_PLAYERS_LEGACY = "mpb_registered_players";
     public static String TABLE_NAME_MIGRATION;
 
     public static String TABLE_NAME_EFFECTS;
@@ -111,7 +112,7 @@ public final class Main extends JavaPlugin {
         BukkitYMLConfig ymlConfigMySQL = new BukkitYMLConfig(this, "mysql.yml");
         mysqlConf = ymlConfigMySQL.getConfig();
         TABLE_NAME = mysqlConf.getString("main-table-name");
-        TABLE_NAME_REGISTERED_PLAYERS = "mpb_registered_players";
+        TABLE_NAME_PLAYER_INDEX = "mpb_player_index";
         TABLE_NAME_MIGRATION = "mpb_migration";
 
         TABLE_NAME_EFFECTS = TABLE_NAME + "_potion_effects";

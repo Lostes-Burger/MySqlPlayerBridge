@@ -33,11 +33,12 @@ public class MySqlConnectionHandler {
 
     private void createTables() {
         try {
-            mySqlManager.createTable(Main.TABLE_NAME_REGISTERED_PLAYERS,
+            mySqlManager.createTable(Main.TABLE_NAME_PLAYER_INDEX,
                     MySqlManager.ColumnDefinition.varchar("uuid", 36),
+                    MySqlManager.ColumnDefinition.varchar("player_name", 32),
                     MySqlManager.ColumnDefinition.text("timestamp"),
                     MySqlManager.ColumnDefinition.Boolean("online"),
-                    MySqlManager.ColumnDefinition.Boolean("cracked")
+                    MySqlManager.ColumnDefinition.text("server_id")
             );
             mySqlManager.createTable(Main.TABLE_NAME_MIGRATION,
                     MySqlManager.ColumnDefinition.text("migration"),

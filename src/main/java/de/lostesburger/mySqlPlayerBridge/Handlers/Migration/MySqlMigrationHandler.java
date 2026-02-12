@@ -61,6 +61,8 @@ public class MySqlMigrationHandler implements Listener {
 
 
         }
+
+        this.migrateLegacyPlayerIndexTable();
     }
 
     private boolean isRunningMigration(){
@@ -171,5 +173,49 @@ public class MySqlMigrationHandler implements Listener {
         if(RUNNING_MIGRATION){
             event.getPlayer().kickPlayer("§c[MySqlPlayerBridge] Server is running database migration -> Try again later!");
         }
+    }
+
+    private void migrateLegacyPlayerIndexTable(){
+        Scheduler.runAsync(() -> {
+            try {
+                if(!mySqlManager.tableExists(Main.TABLE_NAME_REGISTERED_PLAYERS_LEGACY)){
+                    return;
+                }
+            } catch (MySqlError e) {
+                throw new RuntimeException(e);
+            }
+
+            List<Map<String, Object>> entries;
+            try {
+                entries = mySqlManager.getAllEntries(Main.TABLE_NAME_REGISTERED_PLAYERS_LEGACY);
+            } catch (MySqlError e) {
+                throw new RuntimeException(e);
+            }
+
+            for (Map<String, Object> entry : entries){
+                String uuid = String.valueOf(entry.get("uuid"));
+                String timestamp = String.valueOf(entry.get("timestamp"));
+                try {
+                    mySqlManager.setOrUpdateEntry(
+                            Main.TABLE_NAME_PLAYER_INDEX,
+                            Map.of("uuid", uuid),
+                            Map.of(
+                                    "player_name", "",
+                                    "timestamp", timestamp,
+                                    "online", false,
+                                    "server_id", ""
+                            )
+                    );
+                } catch (MySqlError e) {
+                    throw new RuntimeException(e);
+                }
+            }
+
+            try {
+                mySqlManager.getMySQL().queryUpdate("DROP TABLE IF EXISTS `" + Main.TABLE_NAME_REGISTERED_PLAYERS_LEGACY + "`");
+            } catch (MySqlError e) {
+                throw new RuntimeException(e);
+            }
+        }, Main.getInstance());
     }
 }

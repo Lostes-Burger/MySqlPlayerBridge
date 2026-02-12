@@ -25,6 +25,7 @@ public class PlayerBridgeManager implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event){
         Player player = event.getPlayer();
+        PlayerManager.updatePlayerIndex(player, true);
 
         Scheduler.runAsync(() -> {
             if(this.mySqlDataManager.hasData(player)){
@@ -42,6 +43,7 @@ public class PlayerBridgeManager implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLeave(PlayerQuitEvent event){
         Player player = event.getPlayer();
+        PlayerManager.updatePlayerIndex(player, false);
         this.mySqlDataManager.savePlayerData(player, false);
     }
 

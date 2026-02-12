@@ -5,6 +5,7 @@ import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommand
 import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommandManagerException;
 import de.craftcore.craftcore.paper.command.commandmanager.SubCommand.SubCommandManagerExceptionType;
 import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Clear.ClearSubCommand;
+import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Edit.EditSubCommand;
 import de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Sync.SyncSubCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
@@ -22,6 +23,7 @@ public class MPBCommand implements ServerCommand {
 
         subCommandManager.addSubCommand("clear", new ClearSubCommand());
         subCommandManager.addSubCommand("sync", new SyncSubCommand());
+        subCommandManager.addSubCommand("edit", new EditSubCommand());
     }
 
     @Override

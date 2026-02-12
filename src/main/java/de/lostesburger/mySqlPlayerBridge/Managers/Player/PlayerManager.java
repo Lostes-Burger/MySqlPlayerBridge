@@ -32,17 +32,31 @@ public class PlayerManager {
     }
 
     public static void registerPlayer(Player player){
-        registerPlayer(player.getUniqueId());
+        updatePlayerIndex(player, true);
     }
 
     public static void registerPlayer(UUID player_uuid){
+        updatePlayerIndex(player_uuid, "", false);
+    }
+
+    public static void updatePlayerIndex(Player player, boolean online){
+        updatePlayerIndex(player.getUniqueId(), player.getName(), online);
+    }
+
+    private static void updatePlayerIndex(UUID player_uuid, String playerName, boolean online){
         long timestamp = Instant.now().toEpochMilli();
+        String name = playerName == null ? "" : playerName;
         Scheduler.runAsync(() -> {
             try {
                 Main.mySqlConnectionHandler.getManager().setOrUpdateEntry(
-                        Main.TABLE_NAME_REGISTERED_PLAYERS,
+                        Main.TABLE_NAME_PLAYER_INDEX,
                         Map.of("uuid", player_uuid.toString()),
-                        Map.of("timestamp", timestamp)
+                        Map.of(
+                                "player_name", name,
+                                "timestamp", String.valueOf(timestamp),
+                                "online", online,
+                                "server_id", ""
+                        )
                 );
             } catch (MySqlError e) {
                 throw new RuntimeException(e);
