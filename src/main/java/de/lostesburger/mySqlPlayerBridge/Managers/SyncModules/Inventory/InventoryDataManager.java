@@ -4,10 +4,11 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.entity.Player;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +22,13 @@ public class InventoryDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_INVENTORY)){
+                new MySqlErrorHandler().logSyncError("Inventory", "table-exists", Main.TABLE_NAME_INVENTORY, null,
+                        new RuntimeException("Inventory mysql table is missing!"), Map.of("table", Main.TABLE_NAME_INVENTORY), false);
                 throw new RuntimeException("Inventory mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Inventory", "table-exists", Main.TABLE_NAME_INVENTORY, null,
+                    e, Map.of("table", Main.TABLE_NAME_INVENTORY), false);
             throw new RuntimeException(e);
         }
     }
@@ -60,7 +65,9 @@ public class InventoryDataManager {
             if(Main.DEBUG){ System.out.println("Inv: "+serializedInventory); }
 
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Inventory", "serialize", Main.TABLE_NAME_INVENTORY, player,
+                    e, Map.of("uuid", player.getUniqueId().toString()), false);
+            return;
         }
         this.insertToMySql(player.getUniqueId().toString(), serializedInventory);
     }
@@ -73,7 +80,13 @@ public class InventoryDataManager {
                     Map.of("inventory", serializedInventory)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+            String errorId = errorHandler.logSyncError("Inventory", "save", Main.TABLE_NAME_INVENTORY, null,
+                    e, Map.of("uuid", uuid), false);
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("uuid", uuid);
+            data.put("inventory", serializedInventory);
+            errorHandler.saveSyncData(errorId, "Inventory", "save", Main.TABLE_NAME_INVENTORY, null, data);
         }
     }
 
@@ -87,7 +100,9 @@ public class InventoryDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Inventory", "load", Main.TABLE_NAME_INVENTORY, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -99,8 +114,12 @@ public class InventoryDataManager {
                     }
                     player.getInventory().setContents(Main.nbtSerializer.deserialize(String.valueOf(entry.get("inventory"))));
                 } catch (Exception e) {
-                    player.kickPlayer(Chat.getMessage("sync-failed"));
-                    throw new RuntimeException(e);
+                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                    String errorId = errorHandler.logSyncError("Inventory", "deserialize", Main.TABLE_NAME_INVENTORY, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    HashMap<String, Object> data = new HashMap<>(entry);
+                    data.put("uuid", player.getUniqueId().toString());
+                    errorHandler.saveSyncData(errorId, "Inventory", "deserialize", Main.TABLE_NAME_INVENTORY, player, data);
                 }
             }, Main.getInstance());
 

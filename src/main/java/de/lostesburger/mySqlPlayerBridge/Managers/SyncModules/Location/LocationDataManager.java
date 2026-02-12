@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.craftcore.craftcore.global.scheduler.SchedulerException;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
@@ -26,9 +27,13 @@ public class LocationDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_LOCATION)){
+                new MySqlErrorHandler().logSyncError("Location", "table-exists", Main.TABLE_NAME_LOCATION, null,
+                        new RuntimeException("Location mysql table is missing!"), Map.of("table", Main.TABLE_NAME_LOCATION), false);
                 throw new RuntimeException("Location mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Location", "table-exists", Main.TABLE_NAME_LOCATION, null,
+                    e, Map.of("table", Main.TABLE_NAME_LOCATION), false);
             throw new RuntimeException(e);
         }
     }
@@ -84,7 +89,12 @@ public class LocationDataManager {
                     map
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+            String errorId = errorHandler.logSyncError("Location", "save", Main.TABLE_NAME_LOCATION, null,
+                    e, Map.of("uuid", uuid), false);
+            HashMap<String, Object> data = new HashMap<>(map);
+            data.put("uuid", uuid);
+            errorHandler.saveSyncData(errorId, "Location", "save", Main.TABLE_NAME_LOCATION, null, data);
         }
     }
 
@@ -98,7 +108,9 @@ public class LocationDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Location", "load", Main.TABLE_NAME_LOCATION, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -130,15 +142,34 @@ public class LocationDataManager {
                                 }
                             });
                         } catch (NoSuchMethodException e) {} catch (Exception e) {
-                            e.printStackTrace();
+                            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                            String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
+                                    e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            HashMap<String, Object> data = new HashMap<>(entry);
+                            data.put("uuid", player.getUniqueId().toString());
+                            errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
                         }
                     }, Main.getInstance(), location);
                 } catch (SchedulerException e) {
-                    throw new RuntimeException(e+ " Caused by trying to teleport the player async without running Folia");
+                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                    String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    HashMap<String, Object> data = new HashMap<>(entry);
+                    data.put("uuid", player.getUniqueId().toString());
+                    errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
                 }
             }else {
                 Scheduler.run(() -> {
-                    player.teleport(location);
+                    try {
+                        player.teleport(location);
+                    } catch (Exception e) {
+                        MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                        String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
+                                e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        HashMap<String, Object> data = new HashMap<>(entry);
+                        data.put("uuid", player.getUniqueId().toString());
+                        errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
+                    }
                 }, Main.getInstance());
             }
 

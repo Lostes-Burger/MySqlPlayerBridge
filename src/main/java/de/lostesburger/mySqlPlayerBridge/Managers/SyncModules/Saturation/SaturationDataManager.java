@@ -3,9 +3,11 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Saturation;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class SaturationDataManager {
@@ -18,9 +20,13 @@ public class SaturationDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_SATURATION)){
+                new MySqlErrorHandler().logSyncError("Saturation", "table-exists", Main.TABLE_NAME_SATURATION, null,
+                        new RuntimeException("Saturation mysql table is missing!"), Map.of("table", Main.TABLE_NAME_SATURATION), false);
                 throw new RuntimeException("Saturation mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Saturation", "table-exists", Main.TABLE_NAME_SATURATION, null,
+                    e, Map.of("table", Main.TABLE_NAME_SATURATION), false);
             throw new RuntimeException(e);
         }
     }
@@ -63,7 +69,14 @@ public class SaturationDataManager {
                     )
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+            String errorId = errorHandler.logSyncError("Saturation", "save", Main.TABLE_NAME_SATURATION, null,
+                    e, Map.of("uuid", uuid), false);
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("uuid", uuid);
+            data.put("saturation", saturation);
+            data.put("food_level", foodlevel);
+            errorHandler.saveSyncData(errorId, "Saturation", "save", Main.TABLE_NAME_SATURATION, null, data);
         }
     }
 
@@ -77,7 +90,9 @@ public class SaturationDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Saturation", "load", Main.TABLE_NAME_SATURATION, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -85,8 +100,17 @@ public class SaturationDataManager {
             int food_level = (Integer) entry.get("food_level");
 
             Scheduler.run(() -> {
-                player.setSaturation(saturation);
-                player.setFoodLevel(food_level);
+                try {
+                    player.setSaturation(saturation);
+                    player.setFoodLevel(food_level);
+                } catch (Exception e) {
+                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                    String errorId = errorHandler.logSyncError("Saturation", "apply", Main.TABLE_NAME_SATURATION, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    HashMap<String, Object> data = new HashMap<>(entry);
+                    data.put("uuid", player.getUniqueId().toString());
+                    errorHandler.saveSyncData(errorId, "Saturation", "apply", Main.TABLE_NAME_SATURATION, player, data);
+                }
             }, Main.getInstance());
 
         }, Main.getInstance());

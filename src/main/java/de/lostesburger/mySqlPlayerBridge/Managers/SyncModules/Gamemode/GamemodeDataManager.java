@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Gamemode;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.GameMode;
 import org.bukkit.entity.Player;
@@ -20,9 +21,13 @@ public class GamemodeDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_GAMEMODE)){
+                new MySqlErrorHandler().logSyncError("Gamemode", "table-exists", Main.TABLE_NAME_GAMEMODE, null,
+                        new RuntimeException("Gamemode mysql table is missing!"), Map.of("table", Main.TABLE_NAME_GAMEMODE), false);
                 throw new RuntimeException("Gamemode mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Gamemode", "table-exists", Main.TABLE_NAME_GAMEMODE, null,
+                    e, Map.of("table", Main.TABLE_NAME_GAMEMODE), false);
             throw new RuntimeException(e);
         }
     }
@@ -61,7 +66,8 @@ public class GamemodeDataManager {
                     Map.of("gamemode", gameMode)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Gamemode", "save", Main.TABLE_NAME_GAMEMODE, null,
+                    e, Map.of("uuid", uuid), false);
         }
     }
 
@@ -75,7 +81,9 @@ public class GamemodeDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Gamemode", "load", Main.TABLE_NAME_GAMEMODE, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;

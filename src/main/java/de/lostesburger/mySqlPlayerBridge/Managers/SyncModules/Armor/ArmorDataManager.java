@@ -4,11 +4,12 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -22,9 +23,13 @@ public class ArmorDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_ARMOR)){
+                new MySqlErrorHandler().logSyncError("Armor", "table-exists", Main.TABLE_NAME_ARMOR, null,
+                        new RuntimeException("Armor mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ARMOR), false);
                 throw new RuntimeException("Armor mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Armor", "table-exists", Main.TABLE_NAME_ARMOR, null,
+                    e, Map.of("table", Main.TABLE_NAME_ARMOR), false);
             throw new RuntimeException(e);
         }
     }
@@ -66,7 +71,9 @@ public class ArmorDataManager {
             if(Main.DEBUG){ System.out.println("Armor: "+serializedArmor); }
 
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Armor", "serialize", Main.TABLE_NAME_ARMOR, player,
+                    e, Map.of("uuid", player.getUniqueId().toString()), false);
+            return;
         }
 
         this.insertToMySql(player.getUniqueId().toString(), serializedArmor);
@@ -80,7 +87,13 @@ public class ArmorDataManager {
                     Map.of("armor", serializedArmor)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+            String errorId = errorHandler.logSyncError("Armor", "save", Main.TABLE_NAME_ARMOR, null,
+                    e, Map.of("uuid", uuid), false);
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("uuid", uuid);
+            data.put("armor", serializedArmor);
+            errorHandler.saveSyncData(errorId, "Armor", "save", Main.TABLE_NAME_ARMOR, null, data);
         }
     }
 
@@ -94,7 +107,9 @@ public class ArmorDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Armor", "load", Main.TABLE_NAME_ARMOR, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -106,8 +121,12 @@ public class ArmorDataManager {
                     }
                     player.getInventory().setArmorContents(Main.nbtSerializer.deserialize(String.valueOf(entry.get("armor"))));
                 } catch (Exception e) {
-                    player.kickPlayer(Chat.getMessage("sync-failed"));
-                    throw new RuntimeException(e);
+                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                    String errorId = errorHandler.logSyncError("Armor", "deserialize", Main.TABLE_NAME_ARMOR, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    HashMap<String, Object> data = new HashMap<>(entry);
+                    data.put("uuid", player.getUniqueId().toString());
+                    errorHandler.saveSyncData(errorId, "Armor", "deserialize", Main.TABLE_NAME_ARMOR, player, data);
                 }
             }, Main.getInstance());
 

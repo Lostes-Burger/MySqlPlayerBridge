@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Hotbar;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
 import java.util.Map;
@@ -17,9 +18,13 @@ public class HotbarSlotSelectionDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT)){
+                new MySqlErrorHandler().logSyncError("HotbarSlot", "table-exists", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, null,
+                        new RuntimeException("Selected hotbar slot mysql table is missing!"), Map.of("table", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT), false);
                 throw new RuntimeException("Selected hotbar slot mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("HotbarSlot", "table-exists", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, null,
+                    e, Map.of("table", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT), false);
             throw new RuntimeException(e);
         }
     }
@@ -58,7 +63,8 @@ public class HotbarSlotSelectionDataManager {
                     Map.of("slot", slot)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("HotbarSlot", "save", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, null,
+                    e, Map.of("uuid", uuid), false);
         }
     }
 
@@ -72,14 +78,21 @@ public class HotbarSlotSelectionDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("HotbarSlot", "load", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
             int slot = (Integer) entry.get("slot");
 
             Scheduler.run(() -> {
-                this.setHotbarSlot(player, slot);
+                try {
+                    this.setHotbarSlot(player, slot);
+                } catch (RuntimeException e) {
+                    new MySqlErrorHandler().logSyncError("HotbarSlot", "apply", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
+                            e, Map.of("uuid", player.getUniqueId().toString(), "slot", slot), true);
+                }
             }, Main.getInstance());
 
         }, Main.getInstance());

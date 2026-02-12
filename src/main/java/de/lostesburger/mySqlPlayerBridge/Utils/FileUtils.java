@@ -14,7 +14,19 @@ public class FileUtils {
         }
 
         File file = new File(Main.getInstance().getDataFolder(), fileName);
+        writeMapToFile(file, data);
+    }
 
+    public static void saveMapToFile(String subDir, String fileName, HashMap<String, Object> data) {
+        if (!fileName.endsWith(".json")) {
+            fileName += ".json";
+        }
+        File baseDir = new File(Main.getInstance().getDataFolder(), subDir);
+        File file = new File(baseDir, fileName);
+        writeMapToFile(file, data);
+    }
+
+    private static void writeMapToFile(File file, HashMap<String, Object> data) {
         if (!file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
         }

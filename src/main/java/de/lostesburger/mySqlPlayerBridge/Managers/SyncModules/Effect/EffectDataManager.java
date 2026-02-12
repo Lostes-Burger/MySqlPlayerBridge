@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.craftcore.craftcore.global.scheduler.SchedulerException;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.entity.Player;
@@ -24,9 +25,13 @@ public class EffectDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_EFFECTS)){
+                new MySqlErrorHandler().logSyncError("Effect", "table-exists", Main.TABLE_NAME_EFFECTS, null,
+                        new RuntimeException("Potion Effect mysql table is missing!"), Map.of("table", Main.TABLE_NAME_EFFECTS), false);
                 throw new RuntimeException("Potion Effect mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Effect", "table-exists", Main.TABLE_NAME_EFFECTS, null,
+                    e, Map.of("table", Main.TABLE_NAME_EFFECTS), false);
             throw new RuntimeException(e);
         }
     }
@@ -66,7 +71,8 @@ public class EffectDataManager {
                     Map.of("effects", serializedEffects)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Effect", "save", Main.TABLE_NAME_EFFECTS, null,
+                    e, Map.of("uuid", uuid), false);
         }
     }
 
@@ -80,7 +86,9 @@ public class EffectDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Effect", "load", Main.TABLE_NAME_EFFECTS, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -98,7 +106,8 @@ public class EffectDataManager {
                         player.addPotionEffects(effects);
                     }, Main.getInstance(), player.getLocation());
                 } catch (SchedulerException e) {
-                    throw new RuntimeException(e);
+                    new MySqlErrorHandler().logSyncError("Effect", "apply", Main.TABLE_NAME_EFFECTS, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
                 }
             }
 

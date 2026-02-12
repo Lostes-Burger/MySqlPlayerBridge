@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Advancement;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.entity.Player;
@@ -19,9 +20,13 @@ public class AdvancementDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_ADVANCEMENTS)){
+                new MySqlErrorHandler().logSyncError("Advancement", "table-exists", Main.TABLE_NAME_ADVANCEMENTS, null,
+                        new RuntimeException("Advancements mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ADVANCEMENTS), false);
                 throw new RuntimeException("Advancements mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Advancement", "table-exists", Main.TABLE_NAME_ADVANCEMENTS, null,
+                    e, Map.of("table", Main.TABLE_NAME_ADVANCEMENTS), false);
             throw new RuntimeException(e);
         }
     }
@@ -60,7 +65,8 @@ public class AdvancementDataManager {
                     Map.of("advancements", serializedAdvancements)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Advancement", "save", Main.TABLE_NAME_ADVANCEMENTS, null,
+                    e, Map.of("uuid", uuid), false);
         }
     }
 
@@ -74,7 +80,9 @@ public class AdvancementDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Advancement", "load", Main.TABLE_NAME_ADVANCEMENTS, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;

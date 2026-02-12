@@ -4,10 +4,11 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
+import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.entity.Player;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,9 +22,13 @@ public class EnderchestDataManager {
 
         try {
             if(!this.mySqlManager.tableExists(Main.TABLE_NAME_ENDERCHEST)){
+                new MySqlErrorHandler().logSyncError("Enderchest", "table-exists", Main.TABLE_NAME_ENDERCHEST, null,
+                        new RuntimeException("Enderchest mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ENDERCHEST), false);
                 throw new RuntimeException("Enderchest mysql table is missing!");
             }
         } catch (MySqlError e) {
+            new MySqlErrorHandler().logSyncError("Enderchest", "table-exists", Main.TABLE_NAME_ENDERCHEST, null,
+                    e, Map.of("table", Main.TABLE_NAME_ENDERCHEST), false);
             throw new RuntimeException(e);
         }
     }
@@ -60,7 +65,9 @@ public class EnderchestDataManager {
             if(Main.DEBUG){ System.out.println("EC: "+serializedEnderchest); }
 
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            new MySqlErrorHandler().logSyncError("Enderchest", "serialize", Main.TABLE_NAME_ENDERCHEST, player,
+                    e, Map.of("uuid", player.getUniqueId().toString()), false);
+            return;
         }
 
         this.insertToMySql(player.getUniqueId().toString(), serializedEnderchest);
@@ -74,7 +81,13 @@ public class EnderchestDataManager {
                     Map.of("enderchest", serializedEnderchest)
             );
         } catch (MySqlError e) {
-            throw new RuntimeException(e);
+            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+            String errorId = errorHandler.logSyncError("Enderchest", "save", Main.TABLE_NAME_ENDERCHEST, null,
+                    e, Map.of("uuid", uuid), false);
+            HashMap<String, Object> data = new HashMap<>();
+            data.put("uuid", uuid);
+            data.put("enderchest", serializedEnderchest);
+            errorHandler.saveSyncData(errorId, "Enderchest", "save", Main.TABLE_NAME_ENDERCHEST, null, data);
         }
     }
 
@@ -88,7 +101,9 @@ public class EnderchestDataManager {
                         Map.of("uuid", player.getUniqueId().toString())
                 );
             } catch (MySqlError e) {
-                throw new RuntimeException(e);
+                new MySqlErrorHandler().logSyncError("Enderchest", "load", Main.TABLE_NAME_ENDERCHEST, player,
+                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                return;
             }
             if(entry == null) return;
             if(entry.isEmpty()) return;
@@ -100,8 +115,12 @@ public class EnderchestDataManager {
                     }
                     player.getEnderChest().setContents(Main.nbtSerializer.deserialize(String.valueOf(entry.get("enderchest"))));
                 } catch (Exception e) {
-                    player.kickPlayer(Chat.getMessage("sync-failed"));
-                    throw new RuntimeException(e);
+                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                    String errorId = errorHandler.logSyncError("Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player,
+                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    HashMap<String, Object> data = new HashMap<>(entry);
+                    data.put("uuid", player.getUniqueId().toString());
+                    errorHandler.saveSyncData(errorId, "Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player, data);
                 }
             }, Main.getInstance());
 
