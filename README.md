@@ -1,5 +1,7 @@
 # MySqlPlayerBridge
 
+![MySqlPlayerBridge](MySqlPlayerBridge_Logo.png)
+
 Modern player data sync for Minecraft servers with MySQL. Built for current Paper/Bukkit and Folia servers, with modular sync and admin tooling. Designed for multi-server setups where a single database should be the source of truth.
 
 ## Highlights
