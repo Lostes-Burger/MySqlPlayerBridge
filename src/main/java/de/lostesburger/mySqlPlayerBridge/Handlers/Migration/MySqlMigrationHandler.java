@@ -161,7 +161,11 @@ public class MySqlMigrationHandler implements Listener {
 
         Main.getInstance().getLogger().warning("[Database Migration] [Completed] Migration completed successfully! Players are now able to join.");
         try {
-            mySqlManager.setOrUpdateEntry(Main.TABLE_NAME_MIGRATION, Map.of("running_migration", "migration"), Map.of("running_migration", false));
+            mySqlManager.setOrUpdateEntry(
+                    Main.TABLE_NAME_MIGRATION,
+                    Map.of("migration", "migration"),
+                    Map.of("running_migration", false)
+            );
         } catch (MySqlError e) {
             throw new RuntimeException(e);
         }
