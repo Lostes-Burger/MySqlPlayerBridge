@@ -184,6 +184,7 @@ public class MySqlMigrationHandler implements Listener {
             } catch (MySqlError e) {
                 throw new RuntimeException(e);
             }
+            Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Legacy Player Registry] Detected legacy player registry in database. Migrating to new player index...");
 
             List<Map<String, Object>> entries;
             try {
@@ -216,6 +217,9 @@ public class MySqlMigrationHandler implements Listener {
             } catch (MySqlError e) {
                 throw new RuntimeException(e);
             }
+
+            Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Legacy Player Registry] Migration to new player index completed.");
+
         }, Main.getInstance());
     }
 }

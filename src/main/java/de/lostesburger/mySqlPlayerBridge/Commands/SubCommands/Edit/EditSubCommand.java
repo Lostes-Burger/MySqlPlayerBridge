@@ -24,9 +24,9 @@ import java.util.Set;
 import java.util.UUID;
 
 public class EditSubCommand implements ServerCommand {
-    private static final Set<String> PLAYER_ONLY_TYPES = Set.of("inventory", "armor", "enderchest");
+    private static final Set<String> PLAYER_ONLY_TYPES = Set.of("inventory", "armor", "enderchest", "offhand");
     private static final Set<String> ALL_TYPES = Set.of(
-            "inventory", "armor", "enderchest",
+            "inventory", "armor", "enderchest", "offhand",
             "exp", "exp_level",
             "health", "health_max", "health_scaled", "health_scale",
             "saturation", "food_level",
@@ -49,7 +49,7 @@ public class EditSubCommand implements ServerCommand {
         }
 
         if(strings.length < 2){
-            commandSender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            commandSender.sendMessage(buildUsageMessage("<player/*> <data_type> <values>"));
             return;
         }
 
@@ -58,7 +58,7 @@ public class EditSubCommand implements ServerCommand {
         boolean wildcard = targetArg.equals("*");
 
         if(!ALL_TYPES.contains(typeArg)){
-            commandSender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            commandSender.sendMessage(buildUsageMessage("<player/*> <data_type> <values>"));
             return;
         }
 
@@ -79,7 +79,7 @@ public class EditSubCommand implements ServerCommand {
 
         if(PLAYER_ONLY_TYPES.contains(typeArg)){
             if(strings.length != 2){
-                commandSender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+                commandSender.sendMessage(buildUsageMessage("<player> "+typeArg));
                 return;
             }
             if(!(commandSender instanceof Player)){
@@ -164,7 +164,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleExpEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> exp <exp>"));
             return;
         }
         Float exp = parseFloat(strings[2]);
@@ -190,7 +190,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleExpLevelEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> exp_level <level>"));
             return;
         }
         Integer level = parseInt(strings[2]);
@@ -212,7 +212,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleHealthEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> health <value>"));
             return;
         }
         Double health = parseDouble(strings[2]);
@@ -240,7 +240,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleHealthMaxEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> health_max <value>"));
             return;
         }
         Double maxHealth = parseDouble(strings[2]);
@@ -268,7 +268,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleHealthScaledEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> health_scaled <true|false>"));
             return;
         }
         Boolean scaled = parseBoolean(strings[2]);
@@ -290,7 +290,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleHealthScaleEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> health_scale <value>"));
             return;
         }
         Double scale = parseDouble(strings[2]);
@@ -312,7 +312,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleSaturationEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> saturation <value>"));
             return;
         }
         Float saturation = parseFloat(strings[2]);
@@ -334,7 +334,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleFoodLevelEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> food_level <value>"));
             return;
         }
         Integer food = parseInt(strings[2]);
@@ -356,7 +356,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleGamemodeEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> gamemode <gamemode>"));
             return;
         }
         GameMode gameMode;
@@ -380,8 +380,8 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void handleLocationEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
-        if(strings.length != 6 && strings.length != 8){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+        if(strings.length < 6 || strings.length > 8){
+            sender.sendMessage(buildUsageMessage("<player/*> location <world_name> <x> <y> <z> [yaw] [pitch]"));
             return;
         }
 
@@ -440,7 +440,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void handleMoneyEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
         if(strings.length != 3){
-            sender.sendMessage(Chat.getMessage("edit-wrong-usage"));
+            sender.sendMessage(buildUsageMessage("<player/*> money <value>"));
             return;
         }
         Double money = parseDouble(strings[2]);
@@ -781,7 +781,10 @@ public class EditSubCommand implements ServerCommand {
                 }
                 case "gamemode" -> {
                     Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_GAMEMODE, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "gamemode");
+                    if(argIndex != 2){
+                        return List.of();
+                    }
+                    return buildGamemodeSuggestions(entry);
                 }
                 case "money" -> {
                     Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_MONEY, Map.of("uuid", uuid));
@@ -790,7 +793,7 @@ public class EditSubCommand implements ServerCommand {
                 case "location" -> {
                     Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_LOCATION, Map.of("uuid", uuid));
                     if(entry == null || entry.isEmpty()){
-                        return List.of();
+                        return placeholderLocation(argIndex);
                     }
                     if(argIndex == 2){
                         return List.of(String.valueOf(entry.get("world")));
@@ -847,6 +850,35 @@ public class EditSubCommand implements ServerCommand {
             return List.of();
         }
         return List.of(String.valueOf(value));
+    }
+
+    private List<String> buildGamemodeSuggestions(Map<String, Object> entry){
+        List<String> options = new ArrayList<>();
+        if(entry != null && !entry.isEmpty()){
+            Object current = entry.get("gamemode");
+            if(current != null){
+                options.add(String.valueOf(current));
+            }
+        }
+        for (GameMode mode : GameMode.values()){
+            String name = mode.name();
+            if(!options.contains(name)){
+                options.add(name);
+            }
+        }
+        return options;
+    }
+
+    private List<String> placeholderLocation(int argIndex){
+        return switch (argIndex) {
+            case 2 -> List.of("<world_name>");
+            case 3 -> List.of("<x>");
+            case 4 -> List.of("<y>");
+            case 5 -> List.of("<z>");
+            case 6 -> List.of("<yaw>");
+            case 7 -> List.of("<pitch>");
+            default -> List.of();
+        };
     }
 
     private List<String> filterByPrefix(Set<String> options, String prefix){
@@ -918,6 +950,7 @@ public class EditSubCommand implements ServerCommand {
             case "inventory" -> Main.TABLE_NAME_INVENTORY;
             case "armor" -> Main.TABLE_NAME_ARMOR;
             case "enderchest" -> Main.TABLE_NAME_ENDERCHEST;
+            case "offhand" -> Main.TABLE_NAME_INVENTORY;
             default -> "";
         };
     }
@@ -927,12 +960,20 @@ public class EditSubCommand implements ServerCommand {
             case "inventory" -> "inventory";
             case "armor" -> "armor";
             case "enderchest" -> "enderchest";
+            case "offhand" -> "inventory";
             default -> "";
         };
     }
 
     private void sendMessage(CommandSender sender, String message){
         Scheduler.run(() -> sender.sendMessage(message), Main.getInstance());
+    }
+
+    private String buildUsageMessage(String usage){
+        String command = Main.config.getString("settings.command-prefix");
+        return Chat.getMessage("edit-usage")
+                .replace("{command}", command)
+                .replace("{usage}", usage);
     }
 
     private static class TargetInfo {

@@ -7,6 +7,7 @@ import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,7 +62,12 @@ public class InventoryDataManager {
             if(Main.nbtSerializer == null){
                 throw new NBTSerializationException("nbtserializer not loaded on serialize", null);
             }
-            serializedInventory = Main.nbtSerializer.serialize(player.getInventory().getContents());
+            ItemStack[] storage = player.getInventory().getContents();
+            int storageSize = Math.min(storage.length, 36);
+            ItemStack[] withOffhand = new ItemStack[storageSize + 1];
+            System.arraycopy(storage, 0, withOffhand, 0, storageSize);
+            withOffhand[withOffhand.length - 1] = player.getInventory().getItemInOffHand();
+            serializedInventory = Main.nbtSerializer.serialize(withOffhand);
             if(Main.DEBUG){ System.out.println("Inv: "+serializedInventory); }
 
         } catch (Exception e) {
@@ -112,7 +118,14 @@ public class InventoryDataManager {
                     if(Main.nbtSerializer == null){
                         throw new NBTSerializationException("nbtserializer not loaded", null);
                     }
-                    player.getInventory().setContents(Main.nbtSerializer.deserialize(String.valueOf(entry.get("inventory"))));
+                    ItemStack[] data = Main.nbtSerializer.deserialize(String.valueOf(entry.get("inventory")));
+                    ItemStack[] storage = new ItemStack[36];
+                    int copyLen = data.length >= 37 ? 36 : Math.min(36, data.length);
+                    System.arraycopy(data, 0, storage, 0, copyLen);
+                    player.getInventory().setContents(storage);
+                    if(data.length >= 37){
+                        player.getInventory().setItemInOffHand(data[data.length - 1]);
+                    }
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Inventory", "deserialize", Main.TABLE_NAME_INVENTORY, player,
