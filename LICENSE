@@ -1,0 +1,49 @@
+MySqlPlayerBridge License (Custom, Source-Available)
+Version 1.0
+
+Copyright (c) The MySqlPlayerBridge author(s).
+All rights reserved.
+
+Summary (not a substitute for the full license):
+- You may use, modify, and self-compile this software for any lawful purpose.
+- You may redistribute source code only, with proper credit and a visible link to the original project.
+- You may NOT sell, monetize, or commercially exploit the software or any derived works.
+- You may NOT re-list or re-market this software as a new plugin without explicit permission.
+- You may NOT distribute compiled binaries or jars; users must compile from source.
+
+Full License Terms:
+
+1. Definitions
+   "Software" means the source code and any associated files in this repository.
+   "You" means any individual or entity receiving a copy of the Software.
+   "Original Project" means the upstream MySqlPlayerBridge repository.
+   "Commercial Use" means any sale, licensing for a fee, paid distribution, or any form of monetization of the Software or derived works.
+
+2. Grant of Rights
+   Subject to the conditions in this license, You are granted a non-exclusive, worldwide, royalty-free license to:
+   a) Use the Software for any lawful purpose.
+   b) Modify the Software.
+   c) Compile the Software for Your own use.
+   d) Redistribute the Software in source form only, with attribution requirements met.
+
+3. Restrictions
+   a) Commercial Use is prohibited. You may not sell, license for a fee, or otherwise monetize the Software or any derived work.
+   b) Re-listing or re-marketing the Software as a new plugin is prohibited without explicit written permission from the authors.
+   c) Distribution of compiled binaries or jars is prohibited. Users must compile from source.
+   d) You may not remove or alter this license text.
+
+4. Attribution and Linking
+   Any redistribution of the Software (source form) must:
+   a) Include clear credit to the Original Project in the README (or equivalent) of the redistribution.
+   b) Include a visible link to the Original Project.
+   c) If redistributed outside a visible fork (e.g., a separate repository or re-upload), the README credit and link are mandatory.
+
+5. No Warranty
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.
+   THE AUTHORS ARE NOT LIABLE FOR ANY DAMAGES ARISING FROM THE USE OF THE SOFTWARE.
+
+6. Termination
+   Any violation of these terms automatically terminates your rights under this license.
+
+7. Governing Law
+   This license is intended to be enforceable under applicable law. If any provision is held invalid, the remaining provisions remain in effect.
