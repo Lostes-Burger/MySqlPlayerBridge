@@ -44,3 +44,17 @@ manual-sync-success: "§7所有玩家数据已§a成功§7同步"
 manual-sync-wrong-usage: "§c用法错误！使用sync <玩家名/*>"
 # 手动同步目标不存在提示：管理员尝试同步不存在的玩家数据时显示
 manual-sync-player-not-found: "§c未找到玩家。§7此玩家未知。同步失败！"
+
+# Edit subcommand
+edit-wrong-usage: "§cWrong usage! Use edit <player_name/*> <data_type> <values>"
+edit-player-not-found: "§cPlayer not found in database."
+edit-player-online-other-server: "§cPlayer is currently online on another server."
+edit-target-required-player: "§cThis data type can only be edited for a specific player."
+edit-console-no-gui: "§cOnly players can edit inventory data."
+edit-vault-disabled: "§cVault economy module is not enabled."
+edit-invalid-value: "§cInvalid value: {reason}"
+edit-db-error: "§cDatabase error. See console."
+edit-success: "§7Player data was §asuccessfully§7 updated."
+edit-success-all: "§7Data for all players was §asuccessfully§7 updated."
+edit-gui-title: "§9Edit {type} for {player}"
+edit-usage: "§cUsage: /{command} edit {usage}"
