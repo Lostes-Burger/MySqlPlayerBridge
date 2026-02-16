@@ -19,6 +19,7 @@ import java.util.UUID;
 import java.util.logging.Level;
 
 public class MySqlMigrationHandler implements Listener {
+    private static final long MIGRATION_FAILSAFE_TIMEOUT_MS = 15 * 60 * 1000L;
     private final MySqlManager mySqlManager;
     public boolean RUNNING_MIGRATION;
 
@@ -75,7 +76,46 @@ public class MySqlMigrationHandler implements Listener {
 
         if(entry == null) return false;
         if(entry.isEmpty()) return false;
-        return (boolean) entry.get("running_migration");
+
+        boolean runningMigration = Boolean.TRUE.equals(entry.get("running_migration"));
+        if(!runningMigration) return false;
+
+        long migrationTimestamp = extractMigrationTimestamp(entry);
+        long now = Instant.now().toEpochMilli();
+        if(migrationTimestamp <= 0L || now - migrationTimestamp > MIGRATION_FAILSAFE_TIMEOUT_MS){
+            Main.getInstance().getLogger().warning("[Database Migration] [Failsafe triggered] Migration lock exceeded failsafe timeout. Resetting running_migration to false.");
+            this.resetRunningMigrationState();
+            return false;
+        }
+
+        return true;
+    }
+
+    private long extractMigrationTimestamp(Map<String, Object> entry){
+        Object rawTimestamp = entry.get("timestamp");
+        if(rawTimestamp == null) return -1L;
+
+        if(rawTimestamp instanceof Number number){
+            return number.longValue();
+        }
+
+        try {
+            return Long.parseLong(String.valueOf(rawTimestamp));
+        } catch (NumberFormatException ignored) {
+            return -1L;
+        }
+    }
+
+    private void resetRunningMigrationState(){
+        try {
+            mySqlManager.setOrUpdateEntry(
+                    Main.TABLE_NAME_MIGRATION,
+                    Map.of("migration", "migration"),
+                    Map.of("running_migration", false)
+            );
+        } catch (MySqlError e) {
+            throw new RuntimeException(e);
+        }
     }
     public void runAfterCheck(Runnable runnable) {
         final Scheduler.Task[] taskHolder = new Scheduler.Task[1];
