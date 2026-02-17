@@ -24,9 +24,9 @@ import java.util.Set;
 import java.util.UUID;
 
 public class EditSubCommand implements ServerCommand {
-    private static final Set<String> PLAYER_ONLY_TYPES = Set.of("inventory", "armor", "enderchest", "offhand");
+    private static final Set<String> PLAYER_ONLY_TYPES = Set.of("inventory", "armor", "enderchest");
     private static final Set<String> ALL_TYPES = Set.of(
-            "inventory", "armor", "enderchest", "offhand",
+            "inventory", "armor", "enderchest",
             "exp", "exp_level",
             "health", "health_max", "health_scaled", "health_scale",
             "saturation", "food_level",
@@ -950,7 +950,6 @@ public class EditSubCommand implements ServerCommand {
             case "inventory" -> Main.TABLE_NAME_INVENTORY;
             case "armor" -> Main.TABLE_NAME_ARMOR;
             case "enderchest" -> Main.TABLE_NAME_ENDERCHEST;
-            case "offhand" -> Main.TABLE_NAME_INVENTORY;
             default -> "";
         };
     }
@@ -960,7 +959,6 @@ public class EditSubCommand implements ServerCommand {
             case "inventory" -> "inventory";
             case "armor" -> "armor";
             case "enderchest" -> "enderchest";
-            case "offhand" -> "inventory";
             default -> "";
         };
     }

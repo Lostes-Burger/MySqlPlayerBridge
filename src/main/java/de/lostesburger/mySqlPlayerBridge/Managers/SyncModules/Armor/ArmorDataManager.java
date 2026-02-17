@@ -7,7 +7,6 @@ import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -62,12 +61,7 @@ public class ArmorDataManager {
             if(Main.nbtSerializer == null){
                 throw new NBTSerializationException("nbtserializer not loaded on serialize", null);
             }
-            serializedArmor = Main.nbtSerializer.serialize(new ItemStack[]{
-                    player.getInventory().getBoots(),
-                    player.getInventory().getLeggings(),
-                    player.getInventory().getChestplate(),
-                    player.getInventory().getHelmet()
-            });
+            serializedArmor = Main.nbtSerializer.serialize(player.getInventory().getArmorContents());
             if(Main.DEBUG){ System.out.println("Armor: "+serializedArmor); }
 
         } catch (Exception e) {

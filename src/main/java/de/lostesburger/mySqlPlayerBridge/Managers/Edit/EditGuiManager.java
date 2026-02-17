@@ -25,6 +25,12 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class EditGuiManager implements Listener {
     private static final EditGuiManager INSTANCE = new EditGuiManager();
+    private static final int INVENTORY_GUI_SIZE = 45;
+    private static final int INVENTORY_STORAGE_SIZE = 36;
+    private static final int INVENTORY_MAIN_SIZE = 27;
+    private static final int HOTBAR_SIZE = 9;
+    private static final int PLAYER_MAIN_START = 9;
+    private static final int OFFHAND_GUI_SLOT = 40;
     private final ConcurrentHashMap<UUID, EditSession> sessions = new ConcurrentHashMap<>();
 
     public static EditGuiManager getInstance(){
@@ -59,12 +65,6 @@ public class EditGuiManager implements Listener {
             }
             expectedSize = items.length;
         }
-        if(type.equals("offhand") && expectedSize < 37){
-            ItemStack[] expanded = new ItemStack[37];
-            System.arraycopy(items, 0, expanded, 0, items.length);
-            items = expanded;
-            expectedSize = expanded.length;
-        }
         originalItems = Arrays.copyOf(items, expectedSize);
 
         int inventorySize = getInventorySize(expectedSize, type);
@@ -75,12 +75,14 @@ public class EditGuiManager implements Listener {
         Inventory inventory = Bukkit.createInventory(admin, inventorySize, title);
         Set<Integer> blockedSlots = Set.of();
         Integer offhandSlot = null;
+        Integer offhandIndex = null;
 
         if(type.equals("inventory")){
-            int storageSize = Math.min(36, items.length);
-            for (int i = 0; i < storageSize; i++){
-                inventory.setItem(i, items[i]);
-            }
+            offhandSlot = OFFHAND_GUI_SLOT;
+            offhandIndex = resolveOffhandIndex(expectedSize);
+            placeInventoryItems(inventory, items, offhandIndex);
+            blockedSlots = getInventoryOffhandBlockedSlots();
+            placeBarriers(inventory, blockedSlots);
         }else if(type.equals("armor")){
             int armorSize = Math.min(items.length, 4);
             for (int i = 0; i < armorSize; i++){
@@ -91,13 +93,6 @@ public class EditGuiManager implements Listener {
                 blockedSlots.add(slot);
             }
             placeBarriers(inventory, blockedSlots);
-        }else if(type.equals("offhand")){
-            offhandSlot = 4;
-            if(items.length > 36){
-                inventory.setItem(offhandSlot, items[items.length - 1]);
-            }
-            blockedSlots = getOffhandBlockedSlots();
-            placeBarriers(inventory, blockedSlots);
         }else {
             for (int i = 0; i < items.length && i < inventorySize; i++){
                 inventory.setItem(i, items[i]);
@@ -105,7 +100,7 @@ public class EditGuiManager implements Listener {
         }
 
         sessions.put(admin.getUniqueId(), new EditSession(admin.getUniqueId(), targetUuid, targetName, type, inventory, expectedSize,
-                offhandSlot, blockedSlots, originalItems));
+                offhandSlot, offhandIndex, blockedSlots, originalItems));
         admin.openInventory(inventory);
     }
 
@@ -188,28 +183,33 @@ public class EditGuiManager implements Listener {
             case "inventory" -> target.getInventory().setContents(contents);
             case "armor" -> target.getInventory().setArmorContents(contents);
             case "enderchest" -> target.getEnderChest().setContents(contents);
-            case "offhand" -> {
-                if(contents.length > 36){
-                    target.getInventory().setItemInOffHand(contents[contents.length - 1]);
-                }
-            }
         }
     }
 
     private ItemStack[] extractContents(Inventory inventory, EditSession session){
         if(session.type.equals("inventory")){
             ItemStack[] result = Arrays.copyOf(session.originalItems, session.expectedSize);
-            int storageSize = Math.min(36, result.length);
-            for (int i = 0; i < storageSize; i++){
-                result[i] = inventory.getItem(i);
+            for (int slot = 0; slot < INVENTORY_MAIN_SIZE; slot++){
+                int playerIndex = PLAYER_MAIN_START + slot;
+                if(playerIndex < result.length){
+                    result[playerIndex] = inventory.getItem(slot);
+                }
             }
-            return result;
-        }
-
-        if(session.type.equals("offhand")){
-            ItemStack[] result = Arrays.copyOf(session.originalItems, session.expectedSize);
-            if(result.length > 36){
-                result[result.length - 1] = inventory.getItem(session.offhandSlot);
+            for (int slot = 0; slot < HOTBAR_SIZE; slot++){
+                int guiSlot = INVENTORY_MAIN_SIZE + slot;
+                if(slot < result.length){
+                    result[slot] = inventory.getItem(guiSlot);
+                }
+            }
+            ItemStack offhandItem = session.offhandSlot != null ? inventory.getItem(session.offhandSlot) : null;
+            if(session.offhandIndex != null && session.offhandIndex >= 0){
+                if(session.offhandIndex < result.length){
+                    result[session.offhandIndex] = offhandItem;
+                }
+            }else if(offhandItem != null){
+                ItemStack[] expanded = Arrays.copyOf(result, INVENTORY_STORAGE_SIZE + 1);
+                expanded[INVENTORY_STORAGE_SIZE] = offhandItem;
+                return expanded;
             }
             return result;
         }
@@ -225,7 +225,7 @@ public class EditGuiManager implements Listener {
         return switch (type) {
             case "armor" -> 4;
             case "enderchest" -> 27;
-            case "offhand" -> 37;
+            case "inventory" -> 41;
             default -> 36;
         };
     }
@@ -235,13 +235,39 @@ public class EditGuiManager implements Listener {
             return 9;
         }
         if(type.equals("inventory")){
-            return 36;
-        }
-        if(type.equals("offhand")){
-            return 9;
+            return INVENTORY_GUI_SIZE;
         }
         int rows = (expectedSize + 8) / 9;
         return Math.max(9, rows * 9);
+    }
+
+    private void placeInventoryItems(Inventory inventory, ItemStack[] items, Integer offhandIndex){
+        int dataLength = items.length;
+        for (int slot = 0; slot < INVENTORY_MAIN_SIZE; slot++){
+            int playerIndex = PLAYER_MAIN_START + slot;
+            if(playerIndex < dataLength){
+                inventory.setItem(slot, items[playerIndex]);
+            }
+        }
+        for (int slot = 0; slot < HOTBAR_SIZE; slot++){
+            int guiSlot = INVENTORY_MAIN_SIZE + slot;
+            if(slot < dataLength){
+                inventory.setItem(guiSlot, items[slot]);
+            }
+        }
+        if(offhandIndex != null && offhandIndex >= 0 && offhandIndex < dataLength){
+            inventory.setItem(OFFHAND_GUI_SLOT, items[offhandIndex]);
+        }
+    }
+
+    private int resolveOffhandIndex(int dataLength){
+        if(dataLength >= 41){
+            return 40;
+        }
+        if(dataLength == 37){
+            return 36;
+        }
+        return -1;
     }
 
     private void placeBarriers(Inventory inventory, Set<Integer> blockedSlots){
@@ -264,10 +290,11 @@ public class EditGuiManager implements Listener {
         return barrier;
     }
 
-    private Set<Integer> getOffhandBlockedSlots(){
+    private Set<Integer> getInventoryOffhandBlockedSlots(){
         Set<Integer> blocked = new java.util.HashSet<>();
-        for (int slot = 0; slot < 9; slot++){
-            if(slot != 4){
+        int rowStart = INVENTORY_GUI_SIZE - 9;
+        for (int slot = rowStart; slot < rowStart + 9; slot++){
+            if(slot != OFFHAND_GUI_SLOT){
                 blocked.add(slot);
             }
         }
@@ -279,7 +306,6 @@ public class EditGuiManager implements Listener {
             case "inventory" -> Main.TABLE_NAME_INVENTORY;
             case "armor" -> Main.TABLE_NAME_ARMOR;
             case "enderchest" -> Main.TABLE_NAME_ENDERCHEST;
-            case "offhand" -> Main.TABLE_NAME_INVENTORY;
             default -> "";
         };
     }
@@ -289,7 +315,6 @@ public class EditGuiManager implements Listener {
             case "inventory" -> "inventory";
             case "armor" -> "armor";
             case "enderchest" -> "enderchest";
-            case "offhand" -> "inventory";
             default -> "";
         };
     }
@@ -302,11 +327,12 @@ public class EditGuiManager implements Listener {
         private final Inventory inventory;
         private final int expectedSize;
         private final Integer offhandSlot;
+        private final Integer offhandIndex;
         private final Set<Integer> blockedSlots;
         private final ItemStack[] originalItems;
 
         private EditSession(UUID adminUuid, UUID targetUuid, String targetName, String type, Inventory inventory, int expectedSize,
-                            Integer offhandSlot, Set<Integer> blockedSlots, ItemStack[] originalItems){
+                            Integer offhandSlot, Integer offhandIndex, Set<Integer> blockedSlots, ItemStack[] originalItems){
             this.adminUuid = adminUuid;
             this.targetUuid = targetUuid;
             this.targetName = targetName;
@@ -314,6 +340,7 @@ public class EditGuiManager implements Listener {
             this.inventory = inventory;
             this.expectedSize = expectedSize;
             this.offhandSlot = offhandSlot;
+            this.offhandIndex = offhandIndex;
             this.blockedSlots = blockedSlots;
             this.originalItems = originalItems;
         }
