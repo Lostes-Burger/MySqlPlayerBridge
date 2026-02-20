@@ -2,6 +2,7 @@ package de.lostesburger.mySqlPlayerBridge;
 
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
+import de.lostesburger.mySqlPlayerBridge.Handlers.GitHubUpdateCheck.GitHubUpdateCheckHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Migration.MySqlMigrationHandler;
 import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
@@ -14,7 +15,6 @@ import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
 import de.lostesburger.mySqlPlayerBridge.Serialization.NBTSerialization.NBTSerializer;
-import de.craftcore.craftcore.paper.githubUpdate.GitHubUpdateCheckerHandler;
 import de.lostesburger.mySqlPlayerBridge.Utils.Utils;
 import org.bukkit.Bukkit;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -160,8 +160,7 @@ public final class Main extends JavaPlugin {
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
-        // New GitHubUpdateChecker with 403 rate-limit failsafe
-        new GitHubUpdateCheckerHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
+        new GitHubUpdateCheckHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
 
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
