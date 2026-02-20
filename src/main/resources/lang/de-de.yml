@@ -35,3 +35,7 @@ edit-success: "§7Spielerdaten wurden §aerfolgreich§7 aktualisiert."
 edit-success-all: "§7Daten aller Spieler wurden §aerfolgreich§7 aktualisiert."
 edit-gui-title: "§9Editiere {type} von {player}"
 edit-usage: "§cBenutzung: /{command} edit {usage}"
+
+# Update
+update-available: "Eine neue Version des MySqlPlayerBridge plugins ist verfügbar! Installierte version: {installed}. Aktuellste version: {latest}."
+
