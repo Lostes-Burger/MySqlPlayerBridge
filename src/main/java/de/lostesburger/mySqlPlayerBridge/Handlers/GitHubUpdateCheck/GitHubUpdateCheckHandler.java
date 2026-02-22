@@ -1,10 +1,15 @@
 package de.lostesburger.mySqlPlayerBridge.Handlers.GitHubUpdateCheck;
 
+import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.GitHubUpdateCheck.GitHubUpdateCheck;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.GitHubUpdateCheck.GitHubUpdateCheckResult;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.craftcore.craftcore.paper.chat.colorutils.ColorUtils;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
+import net.kyori.adventure.audience.Audience;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
@@ -54,7 +59,18 @@ public class GitHubUpdateCheckHandler implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         if (this.updateAvailable) {
             Scheduler.runLaterAsync(() -> {
-                if (event.getPlayer().hasPermission("mpb.notify") || "Lostes_Burger".equals(event.getPlayer().getName())) {
+                Player player = event.getPlayer();
+                if (player.hasPermission("mpb.notify") || "Lostes_Burger".equals(player.getName())) {
+
+                    Component updateMessage = Component.text(Main.PREFIX+"§c"+this.message)
+                            .clickEvent(ClickEvent.openUrl("https://github.com/Lostes-Burger/MySqlPlayerBridge/releases/latest"));
+
+                    Component downloadMessage = Component.text(Chat.getMessage("download-update"))
+                            .clickEvent(ClickEvent.openUrl("https://github.com/Lostes-Burger/MySqlPlayerBridge/releases/latest"));
+
+
+                    ((Audience) player).sendMessage(updateMessage);
+                    ((Audience) player).sendMessage(downloadMessage);
                     event.getPlayer().sendMessage(ColorUtils.toColor(this.prefix + "§c" + this.message));
                 }
             }, 120, this.plugin);
