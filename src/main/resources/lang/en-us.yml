@@ -38,3 +38,5 @@ edit-usage: "§cUsage: /{command} edit {usage}"
 
 # Update
 update-available: "A new version of the MySqlPlayerBridge plugin is available! Installed version: {installed}, latest version: {latest}."
+download-update: "§9Click §c[§5here§c] §9to visit the download page."
+
