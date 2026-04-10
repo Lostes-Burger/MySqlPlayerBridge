@@ -9,6 +9,7 @@ import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class AdvancementDataManager {
     private final boolean enabled;
@@ -70,9 +71,13 @@ public class AdvancementDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -82,14 +87,23 @@ public class AdvancementDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Advancement", "load", Main.TABLE_NAME_ADVANCEMENTS, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
 
             String serialized = (String) entry.get("advancements");
-            SyncManager.advancementSerializer.deserialize(serialized, player, true);
+            try {
+                SyncManager.advancementSerializer.deserialize(serialized, player, true);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+                return;
+            }
+            future.complete(null);
         }, Main.getInstance());
-
+        return future;
     }
 }

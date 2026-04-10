@@ -31,6 +31,14 @@ public class PlayerManager {
 
     }
 
+    public static void syncTimeoutKick(Player player){
+        Scheduler.run(() -> {
+            String msg = Chat.getMessage("sync-timeout");
+            player.sendMessage(msg);
+            player.kickPlayer(msg);
+        }, Main.getInstance());
+    }
+
     public static void registerPlayer(Player player){
         updatePlayerIndex(player, true);
     }

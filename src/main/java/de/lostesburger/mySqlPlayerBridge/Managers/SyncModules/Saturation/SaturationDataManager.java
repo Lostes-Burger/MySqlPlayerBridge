@@ -9,6 +9,7 @@ import org.bukkit.entity.Player;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class SaturationDataManager {
     private final boolean enabled;
@@ -80,9 +81,13 @@ public class SaturationDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -92,10 +97,13 @@ public class SaturationDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Saturation", "load", Main.TABLE_NAME_SATURATION, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
             float saturation = (Float) entry.get("saturation");
             int food_level = (Integer) entry.get("food_level");
 
@@ -110,10 +118,13 @@ public class SaturationDataManager {
                     HashMap<String, Object> data = new HashMap<>(entry);
                     data.put("uuid", player.getUniqueId().toString());
                     errorHandler.saveSyncData(errorId, "Saturation", "apply", Main.TABLE_NAME_SATURATION, player, data);
+                    future.completeExceptionally(e);
+                    return;
                 }
+                future.complete(null);
             }, Main.getInstance());
 
         }, Main.getInstance());
-
+        return future;
     }
 }

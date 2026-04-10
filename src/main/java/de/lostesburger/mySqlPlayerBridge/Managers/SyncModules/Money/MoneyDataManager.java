@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class MoneyDataManager {
     private final boolean enabled;
@@ -84,9 +85,13 @@ public class MoneyDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -96,10 +101,13 @@ public class MoneyDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Money", "load", Main.TABLE_NAME_MONEY, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
 
             try {
                 Main.vaultManager.setBalance(player, (Double) entry.get("money"));
@@ -110,8 +118,12 @@ public class MoneyDataManager {
                 HashMap<String, Object> data = new HashMap<>(entry);
                 data.put("uuid", player.getUniqueId().toString());
                 errorHandler.saveSyncData(errorId, "Money", "apply", Main.TABLE_NAME_MONEY, player, data);
+                future.completeExceptionally(e);
+                return;
             }
+            future.complete(null);
 
         }, Main.getInstance());
+        return future;
     }
 }

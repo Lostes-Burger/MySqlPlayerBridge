@@ -10,6 +10,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class GamemodeDataManager {
     private final boolean enabled;
@@ -71,9 +72,13 @@ public class GamemodeDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -83,16 +88,25 @@ public class GamemodeDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Gamemode", "load", Main.TABLE_NAME_GAMEMODE, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
 
             Scheduler.run(() -> {
-                player.setGameMode(GameMode.valueOf(String.valueOf(entry.get("gamemode"))));
+                try {
+                    player.setGameMode(GameMode.valueOf(String.valueOf(entry.get("gamemode"))));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+                future.complete(null);
             }, Main.getInstance());
 
         }, Main.getInstance());
-
+        return future;
     }
 }

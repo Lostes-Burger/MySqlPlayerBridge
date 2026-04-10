@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class StatsDataManager {
     private final boolean enabled;
@@ -73,9 +74,13 @@ public class StatsDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -85,14 +90,23 @@ public class StatsDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Stats", "load", Main.TABLE_NAME_STATS, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
 
             String serialized = (String) entry.get("stats");
-            SyncManager.statsSerializer.deserialize(serialized, player, true);
+            try {
+                SyncManager.statsSerializer.deserialize(serialized, player, true);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+                return;
+            }
+            future.complete(null);
         }, Main.getInstance());
-
+        return future;
     }
 }

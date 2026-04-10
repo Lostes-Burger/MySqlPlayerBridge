@@ -11,6 +11,7 @@ import org.bukkit.entity.Player;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class ArmorDataManager {
     private final boolean enabled;
@@ -91,9 +92,13 @@ public class ArmorDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -103,10 +108,13 @@ public class ArmorDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Armor", "load", Main.TABLE_NAME_ARMOR, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
 
             Scheduler.run(() -> {
                 try {
@@ -121,10 +129,13 @@ public class ArmorDataManager {
                     HashMap<String, Object> data = new HashMap<>(entry);
                     data.put("uuid", player.getUniqueId().toString());
                     errorHandler.saveSyncData(errorId, "Armor", "deserialize", Main.TABLE_NAME_ARMOR, player, data);
+                    future.completeExceptionally(e);
+                    return;
                 }
+                future.complete(null);
             }, Main.getInstance());
 
         }, Main.getInstance());
-
+        return future;
     }
 }

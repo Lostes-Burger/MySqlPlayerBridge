@@ -19,32 +19,90 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 public class PlayerBridgeManager implements Listener {
+    private static final long JOIN_SYNC_TIMEOUT_MS = MySqlDataManager.SYNC_WAIT_TIMEOUT_MS;
     private final MySqlDataManager mySqlDataManager;
 
     public PlayerBridgeManager(){
+        this.mySqlDataManager = Main.mySqlConnectionHandler.getMySqlDataManager();
         Bukkit.getPluginManager().registerEvents(this, Main.getInstance());
+        new JoinSyncEventBlocker(this.mySqlDataManager);
         this.startAutoSyncTask();
         this.startPlayerIndexCleanupTask();
-        this.mySqlDataManager = Main.mySqlConnectionHandler.getMySqlDataManager();
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event){
         Player player = event.getPlayer();
+        UUID playerUuid = player.getUniqueId();
         PlayerManager.updatePlayerIndex(player, true);
+        this.mySqlDataManager.markJoinSyncPending(playerUuid);
 
         Scheduler.runAsync(() -> {
-            if(this.mySqlDataManager.hasData(player)){
-                this.mySqlDataManager.applyDataToPlayer(player);
-                PlayerManager.sendDataLoadedMessage(player);
-            }else {
-                if(NoEntryProtection.isTriggered(player)) return;
+            MySqlDataManager.SyncAcquireResult acquireResult = this.mySqlDataManager.acquireSyncLock(playerUuid, true, JOIN_SYNC_TIMEOUT_MS);
+            if(acquireResult != MySqlDataManager.SyncAcquireResult.ACQUIRED){
+                this.mySqlDataManager.clearJoinSyncPending(playerUuid);
+                this.handleJoinSyncAcquireFailure(player, acquireResult);
+                return;
+            }
+
+            boolean asyncJoinSync = false;
+            try {
+                if(this.mySqlDataManager.hasData(player)){
+                    asyncJoinSync = true;
+                    CompletableFuture<Void> syncFuture = this.mySqlDataManager.applyDataToPlayer(player);
+                    syncFuture
+                            .orTimeout(JOIN_SYNC_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+                            .whenComplete((ignored, throwable) -> {
+                                try {
+                                    if(throwable == null){
+                                        PlayerManager.sendDataLoadedMessage(player);
+                                        return;
+                                    }
+                                    if(this.isTimeoutThrowable(throwable)){
+                                        Main.getInstance().getLogger().log(Level.WARNING, "Join sync timeout for player " + player.getName() + " (" + playerUuid + ") pending modules: " + this.mySqlDataManager.getPendingApplyModules(playerUuid), throwable);
+                                        PlayerManager.syncTimeoutKick(player);
+                                        return;
+                                    }
+                                    Main.getInstance().getLogger().log(Level.WARNING, "Join sync failed for player " + player.getName() + " (" + playerUuid + ")", throwable);
+                                    PlayerManager.syncFailedKick(player);
+                                } finally {
+                                    this.mySqlDataManager.releaseSyncLock(playerUuid);
+                                }
+                            });
+                    return;
+                }
+
+                if(NoEntryProtection.isTriggered(player)){
+                    return;
+                }
                 PlayerManager.registerPlayer(player);
-                this.mySqlDataManager.savePlayerData(player, true);
+                this.mySqlDataManager.savePlayerData(player, false);
                 PlayerManager.sendCreatedDataMessage(player);
+            } catch (RuntimeException e) {
+                Main.getInstance().getLogger().log(Level.WARNING, "Join sync failed for player " + player.getName() + " (" + playerUuid + ")", e);
+                PlayerManager.syncFailedKick(player);
+            } finally {
+                if(!asyncJoinSync){
+                    this.mySqlDataManager.releaseSyncLock(playerUuid);
+                }
             }
         }, Main.getInstance());
+    }
+
+    private boolean isTimeoutThrowable(Throwable throwable){
+        Throwable current = throwable;
+        while (current != null){
+            if(current instanceof TimeoutException){
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
@@ -52,6 +110,16 @@ public class PlayerBridgeManager implements Listener {
         Player player = event.getPlayer();
         PlayerManager.updatePlayerIndex(player, false);
         this.mySqlDataManager.savePlayerData(player, false);
+    }
+
+    private void handleJoinSyncAcquireFailure(Player player, MySqlDataManager.SyncAcquireResult acquireResult){
+        if(acquireResult == MySqlDataManager.SyncAcquireResult.TIMEOUT){
+            Main.getInstance().getLogger().warning("Join sync lock wait timeout for player " + player.getName() + " (" + player.getUniqueId() + ")");
+            PlayerManager.syncTimeoutKick(player);
+            return;
+        }
+        Main.getInstance().getLogger().warning("Join sync lock wait interrupted for player " + player.getName() + " (" + player.getUniqueId() + ")");
+        PlayerManager.syncFailedKick(player);
     }
 
     private void startAutoSyncTask(){

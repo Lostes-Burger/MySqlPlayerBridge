@@ -15,6 +15,7 @@ import org.bukkit.entity.Player;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public class LocationDataManager {
@@ -98,9 +99,13 @@ public class LocationDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> completionFuture = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                completionFuture.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -110,15 +115,19 @@ public class LocationDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Location", "load", Main.TABLE_NAME_LOCATION, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                completionFuture.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                completionFuture.complete(null);
+                return;
+            }
 
 
             World world = Bukkit.getWorld((String) entry.get("world"));
             if(world == null){
                 if(!Main.SUPPRESS_WARNINGS) Main.getInstance().getLogger().log(Level.WARNING, "[Location sync] [World missing] Could not apply location data to "+player.getName()+" ("+player.getUniqueId()+toString()+") the latest current world could not be found! (unloaded or missing)");
+                completionFuture.complete(null);
                 return;
             }
             Location location = new Location(world,
@@ -134,20 +143,28 @@ public class LocationDataManager {
                     Scheduler.runRegionalScheduler(() -> {
                         try {
                             Method teleportAsync = player.getClass().getMethod("teleportAsync", Location.class);
-                            CompletableFuture<Boolean> future = (CompletableFuture<Boolean>) teleportAsync.invoke(player, location);
+                            CompletableFuture<Boolean> teleportFuture = (CompletableFuture<Boolean>) teleportAsync.invoke(player, location);
 
-                            future.thenAccept(success -> {
-                                if (!success) {
+                            teleportFuture.orTimeout(4500L, TimeUnit.MILLISECONDS).whenComplete((success, throwable) -> {
+                                if (throwable != null) {
+                                    completionFuture.completeExceptionally(throwable);
+                                    return;
+                                }
+                                if (!Boolean.TRUE.equals(success)) {
                                     Bukkit.getLogger().warning("Failed to teleport player! Player: " + player.getName());
                                 }
+                                completionFuture.complete(null);
                             });
-                        } catch (NoSuchMethodException e) {} catch (Exception e) {
+                        } catch (NoSuchMethodException e) {
+                            completionFuture.completeExceptionally(e);
+                        } catch (Exception e) {
                             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                             String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
                                     e, Map.of("uuid", player.getUniqueId().toString()), true);
                             HashMap<String, Object> data = new HashMap<>(entry);
                             data.put("uuid", player.getUniqueId().toString());
                             errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
+                            completionFuture.completeExceptionally(e);
                         }
                     }, Main.getInstance(), location);
                 } catch (SchedulerException e) {
@@ -157,6 +174,7 @@ public class LocationDataManager {
                     HashMap<String, Object> data = new HashMap<>(entry);
                     data.put("uuid", player.getUniqueId().toString());
                     errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
+                    completionFuture.completeExceptionally(e);
                 }
             }else {
                 Scheduler.run(() -> {
@@ -169,11 +187,14 @@ public class LocationDataManager {
                         HashMap<String, Object> data = new HashMap<>(entry);
                         data.put("uuid", player.getUniqueId().toString());
                         errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
+                        completionFuture.completeExceptionally(e);
+                        return;
                     }
+                    completionFuture.complete(null);
                 }, Main.getInstance());
             }
 
         }, Main.getInstance());
-
+        return completionFuture;
     }
 }

@@ -14,6 +14,7 @@ import org.bukkit.potion.PotionEffect;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class EffectDataManager {
     private final boolean enabled;
@@ -76,9 +77,13 @@ public class EffectDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -88,30 +93,51 @@ public class EffectDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Effect", "load", Main.TABLE_NAME_EFFECTS, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
             String serialized = (String) entry.get("effects");
-
-            List<PotionEffect> effects = SyncManager.potionSerializer.deserialize(serialized);
+            List<PotionEffect> effects;
+            try {
+                effects = SyncManager.potionSerializer.deserialize(serialized);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+                return;
+            }
 
             if(!Minecraft.isFolia()){
                 Scheduler.run(() -> {
-                    player.addPotionEffects(effects);
+                    try {
+                        player.addPotionEffects(effects);
+                    } catch (Exception e) {
+                        future.completeExceptionally(e);
+                        return;
+                    }
+                    future.complete(null);
                 }, Main.getInstance());
             }else {
                 try {
                     Scheduler.runRegionalScheduler(() -> {
-                        player.addPotionEffects(effects);
+                        try {
+                            player.addPotionEffects(effects);
+                        } catch (Exception e) {
+                            future.completeExceptionally(e);
+                            return;
+                        }
+                        future.complete(null);
                     }, Main.getInstance(), player.getLocation());
                 } catch (SchedulerException e) {
                     new MySqlErrorHandler().logSyncError("Effect", "apply", Main.TABLE_NAME_EFFECTS, player,
                             e, Map.of("uuid", player.getUniqueId().toString()), true);
+                    future.completeExceptionally(e);
                 }
             }
 
         }, Main.getInstance());
-
+        return future;
     }
 }

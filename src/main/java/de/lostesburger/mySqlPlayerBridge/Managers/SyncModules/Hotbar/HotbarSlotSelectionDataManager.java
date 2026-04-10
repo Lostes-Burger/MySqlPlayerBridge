@@ -7,6 +7,7 @@ import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.entity.Player;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class HotbarSlotSelectionDataManager {
     private final boolean enabled;
@@ -68,9 +69,13 @@ public class HotbarSlotSelectionDataManager {
         }
     }
 
-    public void applyPlayer(Player player){
+    public CompletableFuture<Void> applyPlayer(Player player){
+        CompletableFuture<Void> future = new CompletableFuture<>();
         Scheduler.runAsync(() -> {
-            if(!this.enabled) return;
+            if(!this.enabled){
+                future.complete(null);
+                return;
+            }
 
             Map<String, Object> entry;
             try {
@@ -80,10 +85,13 @@ public class HotbarSlotSelectionDataManager {
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("HotbarSlot", "load", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
                         e, Map.of("uuid", player.getUniqueId().toString()), true);
+                future.completeExceptionally(e);
                 return;
             }
-            if(entry == null) return;
-            if(entry.isEmpty()) return;
+            if(entry == null || entry.isEmpty()){
+                future.complete(null);
+                return;
+            }
             int slot = (Integer) entry.get("slot");
 
             Scheduler.run(() -> {
@@ -92,11 +100,14 @@ public class HotbarSlotSelectionDataManager {
                 } catch (RuntimeException e) {
                     new MySqlErrorHandler().logSyncError("HotbarSlot", "apply", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
                             e, Map.of("uuid", player.getUniqueId().toString(), "slot", slot), true);
+                    future.completeExceptionally(e);
+                    return;
                 }
+                future.complete(null);
             }, Main.getInstance());
 
         }, Main.getInstance());
-
+        return future;
     }
 
     private void setHotbarSlot(Player player, int slot) {
