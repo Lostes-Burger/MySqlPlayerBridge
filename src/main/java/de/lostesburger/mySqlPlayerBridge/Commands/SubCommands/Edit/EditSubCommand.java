@@ -6,6 +6,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.Edit.EditGuiManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -136,6 +137,21 @@ public class EditSubCommand implements ServerCommand {
         Scheduler.runAsync(() -> {
             TargetInfo targetInfo = resolveTarget(commandNameOrIndex(targetArg, onlineTarget), onlineTarget, admin);
             if(targetInfo == null) return;
+
+            if(targetInfo.onlineLocal && onlineTarget != null && onlineTarget.isOnline()){
+                MySqlDataManager.SyncExecutionResult preSyncResult = Main.mySqlConnectionHandler
+                        .getMySqlDataManager()
+                        .runPreEditSync(onlineTarget, MySqlDataManager.SYNC_WAIT_TIMEOUT_MS);
+
+                if(preSyncResult == MySqlDataManager.SyncExecutionResult.TIMEOUT){
+                    sendMessage(admin, Chat.getMessage("edit-pre-sync-timeout").replace("{player}", targetInfo.name));
+                    return;
+                }
+                if(preSyncResult == MySqlDataManager.SyncExecutionResult.FAILED){
+                    sendMessage(admin, Chat.getMessage("edit-pre-sync-failed").replace("{player}", targetInfo.name));
+                    return;
+                }
+            }
 
             MySqlManager manager = Main.mySqlConnectionHandler.getManager();
             String table = getTableForInventoryType(typeArg);
