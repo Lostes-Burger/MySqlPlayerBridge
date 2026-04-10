@@ -4,6 +4,7 @@
 no-database-config-error: "§cEnter mysql credentials in the mysql.yml config. Restart after to use this plugin!"
 sync-success: "§7Player data§a successfully§9 synced!"
 sync-failed: "§cPlayer data could not be synced. Please contact staff or try joining again."
+sync-timeout: "§cPlayer sync timed out after 5 seconds. Please try again and contact staff."
 created-data: "§7Player data§a successfully §9created"
 no-entry-protection-kick: "§cNo entry protection enabled.§7 You have no existing player data. You can't join this server before joining the parent server first and receiving your player data. If you think this is an error, please contact server staff."
 
@@ -31,6 +32,8 @@ edit-console-no-gui: "§cOnly players can edit inventory data."
 edit-vault-disabled: "§cVault economy module is not enabled."
 edit-invalid-value: "§cInvalid value: {reason}"
 edit-db-error: "§cDatabase error. See console."
+edit-pre-sync-timeout: "§cPre-edit sync for {player} timed out after 5 seconds. Edit was cancelled."
+edit-pre-sync-failed: "§cPre-edit sync for {player} failed. Edit was cancelled."
 edit-success: "§7Player data was §asuccessfully§7 updated."
 edit-success-all: "§7Data for all players was §asuccessfully§7 updated."
 edit-gui-title: "§9Edit {type} for {player}"
@@ -39,4 +42,3 @@ edit-usage: "§cUsage: /{command} edit {usage}"
 # Update
 update-available: "A new version of the MySqlPlayerBridge plugin is available! Installed version: {installed}, latest version: {latest}."
 download-update: "§9Click §c[§5here§c] §9to visit the download page."
-
