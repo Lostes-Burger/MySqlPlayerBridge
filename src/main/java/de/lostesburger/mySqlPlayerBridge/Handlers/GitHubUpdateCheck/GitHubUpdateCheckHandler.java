@@ -9,7 +9,6 @@ import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -102,7 +101,7 @@ public class GitHubUpdateCheckHandler implements Listener {
             return;
         }
 
-        Bukkit.getScheduler().runTaskLater(this.plugin, () -> {
+        Scheduler.runLater(() -> {
             if (!player.isOnline()) {
                 return;
             }
@@ -116,7 +115,7 @@ public class GitHubUpdateCheckHandler implements Listener {
             ((Audience) player).sendMessage(updateMessage);
             ((Audience) player).sendMessage(downloadMessage);
             player.sendMessage(ColorUtils.toColor(this.prefix + "§c" + this.message));
-        }, 120L);
+        }, 120L, this.plugin);
     }
 
     private boolean canReceiveUpdateNotify(Player player) {
