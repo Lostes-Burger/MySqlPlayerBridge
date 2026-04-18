@@ -41,4 +41,6 @@ edit-usage: "§cBenutzung: /{command} edit {usage}"
 
 # Update
 update-available: "Eine neue Version des MySqlPlayerBridge plugins ist verfügbar! Installierte version: {installed}. Aktuellste version: {latest}."
+update-available-prerelease: "Eine neue PRE-RELEASE Version des MySqlPlayerBridge plugins ist verfügbar! Installierte version: {installed}. Aktuellste version: {latest}."
 download-update: "§9Drücke §c[§5hier§c] §9um zum downloadlink zu gelangen."
+update-check-failed: "GitHub Update-Check fehlgeschlagen oder ungültige Daten erhalten: {reason}"
