@@ -7,6 +7,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 
 import java.util.Map;
@@ -36,9 +37,18 @@ public class StatsDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String uuid = player.getUniqueId().toString();
+                    String serialized = SyncManager.statsSerializer.serialize(player);
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, serialized));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -47,9 +57,13 @@ public class StatsDataManager {
 
     public void saveManual(UUID uuid, String serializedStats, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), serializedStats);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), serializedStats));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), serializedStats);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), serializedStats);
         }
@@ -76,7 +90,8 @@ public class StatsDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -85,11 +100,11 @@ public class StatsDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_STATS,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Stats", "load", Main.TABLE_NAME_STATS, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -99,14 +114,30 @@ public class StatsDataManager {
             }
 
             String serialized = (String) entry.get("stats");
-            try {
-                SyncManager.statsSerializer.deserialize(serialized, player, true);
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-                return;
+            Runnable applyTask = () -> {
+                try {
+                    SyncManager.statsSerializer.deserialize(serialized, player, true);
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+                future.complete(null);
+            };
+
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
             }
-            future.complete(null);
-        }, Main.getInstance());
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

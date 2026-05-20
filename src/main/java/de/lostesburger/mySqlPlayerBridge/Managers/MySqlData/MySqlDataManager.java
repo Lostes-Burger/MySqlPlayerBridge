@@ -7,6 +7,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -201,7 +202,12 @@ public class MySqlDataManager {
 
     public void saveAllOnlinePlayersAsync(){
         for (Player player : Bukkit.getOnlinePlayers()){
-            Scheduler.runAsync(() -> { this.savePlayerData(player, true);}, Main.getInstance());
+            Runnable task = () -> { this.savePlayerData(player, true);};
+            if(Main.IS_FOLIA){
+                BridgeScheduler.runAsync(task);
+            }else {
+                Scheduler.runAsync(task, Main.getInstance());
+            }
         }
     }
 }

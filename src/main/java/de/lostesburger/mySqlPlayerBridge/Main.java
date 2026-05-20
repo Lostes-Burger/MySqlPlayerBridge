@@ -40,7 +40,7 @@ public final class Main extends JavaPlugin {
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.7.4";
+    public static String version = "3.7.5";
     public static String PLUGIN_NAME = "MySqlPlayerBridge";
     public static String PREFIX;
     public static String LANGUAGE;
@@ -57,6 +57,7 @@ public final class Main extends JavaPlugin {
 
     public static NBTSerializer nbtSerializer = null;
     public static boolean SUPPRESS_WARNINGS = false;
+    public static boolean IS_FOLIA = false;
 
     public static String TABLE_NAME = "player_data";
     public static String TABLE_NAME_PLAYER_INDEX;
@@ -85,11 +86,11 @@ public final class Main extends JavaPlugin {
     @Override
     public void onEnable() {
         instance = this;
-
+        IS_FOLIA = Minecraft.isFolia();
         this.getLogger().log(Level.WARNING, "Starting "+PLUGIN_NAME+" plugin v" + version);        serverType = Bukkit.getServer().getVersion();
         this.getLogger().log(Level.INFO, "Detected server type: " + serverType);
 
-        if (Minecraft.isFolia()) {
+        if (IS_FOLIA) {
             this.getLogger().warning("Server is running Folia, a software supported by this plugin");
             this.getLogger().warning("Unknown errors in Folia itself can occur (including major security flaws)");
         }

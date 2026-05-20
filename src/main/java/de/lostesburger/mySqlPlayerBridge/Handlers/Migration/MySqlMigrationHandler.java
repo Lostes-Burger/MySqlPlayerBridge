@@ -6,6 +6,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.HandlerList;
@@ -148,7 +149,7 @@ public class MySqlMigrationHandler implements Listener {
         } finally {
             RUNNING_MIGRATION = false;
         }
-        Scheduler.runAsync(() -> {
+        Runnable migrationTask = () -> {
             int counter = 0;
             int max = entries.size();
             Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Starting] Starting database migration now! Data to migrate: "+max);
@@ -188,7 +189,12 @@ public class MySqlMigrationHandler implements Listener {
                 PlayerManager.registerPlayer(uuid);
                 Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] ["+counter+"/"+max+"] Completed migration for player: "+uuidString);
             }
-        }, Main.getInstance());
+        };
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runAsync(migrationTask);
+        }else {
+            Scheduler.runAsync(migrationTask, Main.getInstance());
+        }
 
         String new_name = Main.TABLE_NAME+"_backup_"+UUID.randomUUID().toString().replaceAll("-", "_");
         String renameQuery = "RENAME TABLE `" + Main.TABLE_NAME + "` TO `" + new_name + "`";
@@ -220,7 +226,7 @@ public class MySqlMigrationHandler implements Listener {
     }
 
     private void migrateLegacyPlayerIndexTable(){
-        Scheduler.runAsync(() -> {
+        Runnable migrationTask = () -> {
             try {
                 if(!mySqlManager.tableExists(Main.TABLE_NAME_REGISTERED_PLAYERS_LEGACY)){
                     return;
@@ -264,6 +270,11 @@ public class MySqlMigrationHandler implements Listener {
 
             Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Legacy Player Registry] Migration to new player index completed.");
 
-        }, Main.getInstance());
+        };
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runAsync(migrationTask);
+        }else {
+            Scheduler.runAsync(migrationTask, Main.getInstance());
+        }
     }
 }

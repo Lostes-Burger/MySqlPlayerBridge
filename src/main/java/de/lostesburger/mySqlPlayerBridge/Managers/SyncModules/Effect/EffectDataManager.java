@@ -1,13 +1,12 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Effect;
 
-import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
-import de.craftcore.craftcore.global.scheduler.SchedulerException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 import org.bukkit.potion.PotionEffect;
 
@@ -39,9 +38,18 @@ public class EffectDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String uuid = player.getUniqueId().toString();
+                    String serialized = SyncManager.potionSerializer.serialize(player);
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, serialized));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -50,9 +58,13 @@ public class EffectDataManager {
 
     public void saveManual(UUID uuid, String serializedEffects, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), serializedEffects);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), serializedEffects));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), serializedEffects);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), serializedEffects);
         }
@@ -79,7 +91,8 @@ public class EffectDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -88,11 +101,11 @@ public class EffectDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_EFFECTS,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Effect", "load", Main.TABLE_NAME_EFFECTS, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -109,35 +122,33 @@ public class EffectDataManager {
                 return;
             }
 
-            if(!Minecraft.isFolia()){
+            Runnable applyTask = () -> {
+                try {
+                    player.addPotionEffects(effects);
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                    return;
+                }
+                future.complete(null);
+            };
+
+            if(!Main.IS_FOLIA){
                 Scheduler.run(() -> {
-                    try {
-                        player.addPotionEffects(effects);
-                    } catch (Exception e) {
-                        future.completeExceptionally(e);
-                        return;
-                    }
-                    future.complete(null);
+                    applyTask.run();
                 }, Main.getInstance());
             }else {
-                try {
-                    Scheduler.runRegionalScheduler(() -> {
-                        try {
-                            player.addPotionEffects(effects);
-                        } catch (Exception e) {
-                            future.completeExceptionally(e);
-                            return;
-                        }
-                        future.complete(null);
-                    }, Main.getInstance(), player.getLocation());
-                } catch (SchedulerException e) {
-                    new MySqlErrorHandler().logSyncError("Effect", "apply", Main.TABLE_NAME_EFFECTS, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
-                    future.completeExceptionally(e);
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
                 }
             }
 
-        }, Main.getInstance());
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

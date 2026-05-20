@@ -1,12 +1,11 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Location;
 
-import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
-import de.craftcore.craftcore.global.scheduler.SchedulerException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -41,9 +40,24 @@ public class LocationDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    Location location = player.getLocation();
+                    String uuid = player.getUniqueId().toString();
+                    String world = Objects.requireNonNull(location.getWorld()).getName();
+                    double x = location.getX();
+                    double y = location.getY();
+                    double z = location.getZ();
+                    float yaw = location.getYaw();
+                    float pitch = location.getPitch();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, world, x, y, z, yaw, pitch));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -52,9 +66,13 @@ public class LocationDataManager {
 
     public void saveManual(UUID uuid, String world, double x, double y, double z, float yaw, float pitch, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), world, x, y, z, yaw, pitch);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), world, x, y, z, yaw, pitch));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), world, x, y, z, yaw, pitch);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), world, x, y, z, yaw, pitch);
         }
@@ -101,7 +119,9 @@ public class LocationDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> completionFuture = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        UUID playerUuid = player.getUniqueId();
+        String playerName = player.getName();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 completionFuture.complete(null);
                 return;
@@ -110,11 +130,11 @@ public class LocationDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_LOCATION,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid.toString())
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Location", "load", Main.TABLE_NAME_LOCATION, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid.toString()), true);
                 completionFuture.completeExceptionally(e);
                 return;
             }
@@ -126,7 +146,7 @@ public class LocationDataManager {
 
             World world = Bukkit.getWorld((String) entry.get("world"));
             if(world == null){
-                if(!Main.SUPPRESS_WARNINGS) Main.getInstance().getLogger().log(Level.WARNING, "[Location sync] [World missing] Could not apply location data to "+player.getName()+" ("+player.getUniqueId()+toString()+") the latest current world could not be found! (unloaded or missing)");
+                if(!Main.SUPPRESS_WARNINGS) Main.getInstance().getLogger().log(Level.WARNING, "[Location sync] [World missing] Could not apply location data to "+playerName+" ("+playerUuid+") the latest current world could not be found! (unloaded or missing)");
                 completionFuture.complete(null);
                 return;
             }
@@ -138,43 +158,36 @@ public class LocationDataManager {
                     (Float) entry.get("pitch")
             );
 
-            if (Minecraft.isFolia()){
-                try {
-                    Scheduler.runRegionalScheduler(() -> {
-                        try {
-                            Method teleportAsync = player.getClass().getMethod("teleportAsync", Location.class);
-                            CompletableFuture<Boolean> teleportFuture = (CompletableFuture<Boolean>) teleportAsync.invoke(player, location);
+            if (Main.IS_FOLIA){
+                boolean scheduled = BridgeScheduler.runEntity(player, () -> {
+                    try {
+                        Method teleportAsync = player.getClass().getMethod("teleportAsync", Location.class);
+                        CompletableFuture<Boolean> teleportFuture = (CompletableFuture<Boolean>) teleportAsync.invoke(player, location);
 
-                            teleportFuture.orTimeout(4500L, TimeUnit.MILLISECONDS).whenComplete((success, throwable) -> {
-                                if (throwable != null) {
-                                    completionFuture.completeExceptionally(throwable);
-                                    return;
-                                }
-                                if (!Boolean.TRUE.equals(success)) {
-                                    Bukkit.getLogger().warning("Failed to teleport player! Player: " + player.getName());
-                                }
-                                completionFuture.complete(null);
-                            });
-                        } catch (NoSuchMethodException e) {
-                            completionFuture.completeExceptionally(e);
-                        } catch (Exception e) {
-                            MySqlErrorHandler errorHandler = new MySqlErrorHandler();
-                            String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
-                                    e, Map.of("uuid", player.getUniqueId().toString()), true);
-                            HashMap<String, Object> data = new HashMap<>(entry);
-                            data.put("uuid", player.getUniqueId().toString());
-                            errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
-                            completionFuture.completeExceptionally(e);
-                        }
-                    }, Main.getInstance(), location);
-                } catch (SchedulerException e) {
-                    MySqlErrorHandler errorHandler = new MySqlErrorHandler();
-                    String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
-                    HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
-                    errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
-                    completionFuture.completeExceptionally(e);
+                        teleportFuture.orTimeout(4500L, TimeUnit.MILLISECONDS).whenComplete((success, throwable) -> {
+                            if (throwable != null) {
+                                completionFuture.completeExceptionally(throwable);
+                                return;
+                            }
+                            if (!Boolean.TRUE.equals(success)) {
+                                Bukkit.getLogger().warning("Failed to teleport player! Player: " + playerName);
+                            }
+                            completionFuture.complete(null);
+                        });
+                    } catch (NoSuchMethodException e) {
+                        completionFuture.completeExceptionally(e);
+                    } catch (Exception e) {
+                        MySqlErrorHandler errorHandler = new MySqlErrorHandler();
+                        String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
+                                e, Map.of("uuid", playerUuid.toString()), true);
+                        HashMap<String, Object> data = new HashMap<>(entry);
+                        data.put("uuid", playerUuid.toString());
+                        errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
+                        completionFuture.completeExceptionally(e);
+                    }
+                }, () -> completionFuture.complete(null));
+                if (!scheduled) {
+                    completionFuture.complete(null);
                 }
             }else {
                 Scheduler.run(() -> {
@@ -183,9 +196,9 @@ public class LocationDataManager {
                     } catch (Exception e) {
                         MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                         String errorId = errorHandler.logSyncError("Location", "teleport", Main.TABLE_NAME_LOCATION, player,
-                                e, Map.of("uuid", player.getUniqueId().toString()), true);
+                                e, Map.of("uuid", playerUuid.toString()), true);
                         HashMap<String, Object> data = new HashMap<>(entry);
-                        data.put("uuid", player.getUniqueId().toString());
+                        data.put("uuid", playerUuid.toString());
                         errorHandler.saveSyncData(errorId, "Location", "teleport", Main.TABLE_NAME_LOCATION, player, data);
                         completionFuture.completeExceptionally(e);
                         return;
@@ -194,7 +207,12 @@ public class LocationDataManager {
                 }, Main.getInstance());
             }
 
-        }, Main.getInstance());
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return completionFuture;
     }
 }

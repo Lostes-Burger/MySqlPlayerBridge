@@ -7,6 +7,7 @@ import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.NoEntryProtection.NoEntryProtection;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -42,7 +43,7 @@ public class PlayerBridgeManager implements Listener {
         PlayerManager.updatePlayerIndex(player, true);
         this.mySqlDataManager.markJoinSyncPending(playerUuid);
 
-        Scheduler.runAsync(() -> {
+        Runnable joinSyncTask = () -> {
             MySqlDataManager.SyncAcquireResult acquireResult = this.mySqlDataManager.acquireSyncLock(playerUuid, true, JOIN_SYNC_TIMEOUT_MS);
             if(acquireResult != MySqlDataManager.SyncAcquireResult.ACQUIRED){
                 this.mySqlDataManager.clearJoinSyncPending(playerUuid);
@@ -51,6 +52,7 @@ public class PlayerBridgeManager implements Listener {
             }
 
             boolean asyncJoinSync = false;
+            boolean foliaEntityHandoff = false;
             try {
                 if(this.mySqlDataManager.hasData(player)){
                     asyncJoinSync = true;
@@ -77,6 +79,29 @@ public class PlayerBridgeManager implements Listener {
                     return;
                 }
 
+                if(Main.IS_FOLIA){
+                    foliaEntityHandoff = true;
+                    boolean scheduled = BridgeScheduler.runEntity(player, () -> {
+                        try {
+                            if(NoEntryProtection.isTriggered(player)){
+                                return;
+                            }
+                            PlayerManager.registerPlayer(player);
+                            this.mySqlDataManager.savePlayerData(player, false);
+                            PlayerManager.sendCreatedDataMessage(player);
+                        } catch (RuntimeException e) {
+                            Main.getInstance().getLogger().log(Level.WARNING, "Join sync failed for player " + player.getName() + " (" + playerUuid + ")", e);
+                            PlayerManager.syncFailedKick(player);
+                        } finally {
+                            this.mySqlDataManager.releaseSyncLock(playerUuid);
+                        }
+                    }, () -> this.mySqlDataManager.releaseSyncLock(playerUuid));
+                    if(!scheduled){
+                        this.mySqlDataManager.releaseSyncLock(playerUuid);
+                    }
+                    return;
+                }
+
                 if(NoEntryProtection.isTriggered(player)){
                     return;
                 }
@@ -87,11 +112,16 @@ public class PlayerBridgeManager implements Listener {
                 Main.getInstance().getLogger().log(Level.WARNING, "Join sync failed for player " + player.getName() + " (" + playerUuid + ")", e);
                 PlayerManager.syncFailedKick(player);
             } finally {
-                if(!asyncJoinSync){
+                if(!asyncJoinSync && !foliaEntityHandoff){
                     this.mySqlDataManager.releaseSyncLock(playerUuid);
                 }
             }
-        }, Main.getInstance());
+        };
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runAsync(joinSyncTask);
+        }else {
+            Scheduler.runAsync(joinSyncTask, Main.getInstance());
+        }
     }
 
     private boolean isTimeoutThrowable(Throwable throwable){
@@ -140,7 +170,12 @@ public class PlayerBridgeManager implements Listener {
                 for (Player player : Bukkit.getOnlinePlayers()){
                     onlinePlayers.add(new PlayerSnapshot(player.getUniqueId(), player.getName()));
                 }
-                Scheduler.runAsync(() -> runPlayerIndexCleanup(onlinePlayers), Main.getInstance());
+                Runnable cleanupTask = () -> runPlayerIndexCleanup(onlinePlayers);
+                if(Main.IS_FOLIA){
+                    BridgeScheduler.runAsync(cleanupTask);
+                }else {
+                    Scheduler.runAsync(cleanupTask, Main.getInstance());
+                }
             }, Main.getInstance());
         }, interval, interval, Main.getInstance());
         Main.schedulers.add(task);

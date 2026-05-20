@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -35,9 +36,19 @@ public class ExperienceDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String uuid = player.getUniqueId().toString();
+                    float exp = player.getExp();
+                    int level = player.getLevel();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, exp, level));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -46,9 +57,13 @@ public class ExperienceDataManager {
 
     public void saveManual(UUID uuid, float exp, int explevel, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), exp, explevel);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), exp, explevel));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), exp, explevel);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), exp, explevel);
         }
@@ -83,7 +98,8 @@ public class ExperienceDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        UUID playerUuid = player.getUniqueId();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -92,11 +108,11 @@ public class ExperienceDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_EXP,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid.toString())
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Experience", "load", Main.TABLE_NAME_EXP, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid.toString()), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -105,25 +121,38 @@ public class ExperienceDataManager {
                 return;
             }
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     player.setLevel((Integer) entry.get("exp_level"));
                     player.setExp((Float) entry.get("exp"));
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Experience", "apply", Main.TABLE_NAME_EXP, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            e, Map.of("uuid", playerUuid.toString()), true);
                     HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
+                    data.put("uuid", playerUuid.toString());
                     errorHandler.saveSyncData(errorId, "Experience", "apply", Main.TABLE_NAME_EXP, player, data);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
 
-        }, Main.getInstance());
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

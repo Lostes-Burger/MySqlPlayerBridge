@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.Player;
 
@@ -36,9 +37,21 @@ public class HealthDataManager {
 
     public void savePlayer(Player player, boolean async) {
         if (async) {
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if (!this.enabled) return;
+                    double maxHp = player.getAttribute(Attribute.MAX_HEALTH).getValue();
+                    String uuid = player.getUniqueId().toString();
+                    double health = player.getHealth();
+                    boolean healthScaled = player.isHealthScaled();
+                    double healthScale = player.getHealthScale();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, health, maxHp, healthScaled, healthScale));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         } else {
             this.save(player);
         }
@@ -46,9 +59,13 @@ public class HealthDataManager {
 
     public void saveManual(UUID uuid, double health, double health_max, boolean health_scaled, double health_scale, boolean async) {
         if (async) {
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), health, health_max, health_scaled, health_scale);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), health, health_max, health_scaled, health_scale));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), health, health_max, health_scaled, health_scale);
+                }, Main.getInstance());
+            }
         } else {
             this.insertToMySql(uuid.toString(), health, health_max, health_scaled, health_scale);
         }
@@ -56,7 +73,7 @@ public class HealthDataManager {
 
     private void save(Player player) {
         if (!this.enabled) return;
-        double maxHp = player.getAttribute(Attribute.GENERIC_MAX_HEALTH).getValue();
+        double maxHp = player.getAttribute(Attribute.MAX_HEALTH).getValue();
         this.insertToMySql(
                 player.getUniqueId().toString(),
                 player.getHealth(),
@@ -94,7 +111,8 @@ public class HealthDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        UUID playerUuid = player.getUniqueId();
+        Runnable loadTask = () -> {
             if (!this.enabled){
                 future.complete(null);
                 return;
@@ -103,11 +121,11 @@ public class HealthDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_HEALTH,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid.toString())
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Health", "load", Main.TABLE_NAME_HEALTH, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid.toString()), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -121,7 +139,7 @@ public class HealthDataManager {
             boolean scaled = (boolean) entry.get("health_scaled");
             double scale = (Double) entry.get("health_scale");
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     if(health > player.getMaxHealth()){
                         player.setHealth(player.getMaxHealth());
@@ -135,17 +153,31 @@ public class HealthDataManager {
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Health", "apply", Main.TABLE_NAME_HEALTH, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            e, Map.of("uuid", playerUuid.toString()), true);
                     HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
+                    data.put("uuid", playerUuid.toString());
                     errorHandler.saveSyncData(errorId, "Health", "apply", Main.TABLE_NAME_HEALTH, player, data);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
-        }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
+
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

@@ -7,11 +7,13 @@ import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.Edit.EditGuiManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.attribute.Attribute;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
@@ -134,7 +136,7 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void handleInventoryEdit(Player admin, String targetArg, Player onlineTarget, String typeArg){
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             TargetInfo targetInfo = resolveTarget(commandNameOrIndex(targetArg, onlineTarget), onlineTarget, admin);
             if(targetInfo == null) return;
 
@@ -172,10 +174,14 @@ public class EditSubCommand implements ServerCommand {
             }
 
             String finalSerialized = serialized;
-            Scheduler.run(() -> {
-                editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid), targetInfo.name, typeArg, finalSerialized);
-            }, Main.getInstance());
-        }, Main.getInstance());
+            if(Main.IS_FOLIA){
+                BridgeScheduler.runEntity(admin, () -> editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid), targetInfo.name, typeArg, finalSerialized));
+            }else {
+                Scheduler.run(() -> {
+                    editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid), targetInfo.name, typeArg, finalSerialized);
+                }, Main.getInstance());
+            }
+        });
     }
 
     private void handleExpEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -192,7 +198,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", "exp range 0-1"));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_EXP, Map.of("exp", exp), sender);
                 return;
@@ -201,7 +207,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_EXP, targetInfo.uuid, Map.of("exp", exp), sender);
             applyExp(onlineTarget, exp, null);
-        }, Main.getInstance());
+        });
     }
 
     private void handleExpLevelEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -214,7 +220,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_EXP, Map.of("exp_level", level), sender);
                 return;
@@ -223,7 +229,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_EXP, targetInfo.uuid, Map.of("exp_level", level), sender);
             applyExp(onlineTarget, null, level);
-        }, Main.getInstance());
+        });
     }
 
     private void handleHealthEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -236,7 +242,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateHealthForAll(health, sender);
                 return;
@@ -251,7 +257,7 @@ public class EditSubCommand implements ServerCommand {
             }
             updateSingleEntry(Main.TABLE_NAME_HEALTH, targetInfo.uuid, Map.of("health", health), sender);
             applyHealth(onlineTarget, health, null, null, null);
-        }, Main.getInstance());
+        });
     }
 
     private void handleHealthMaxEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -264,7 +270,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateHealthMaxForAll(maxHealth, sender);
                 return;
@@ -279,7 +285,7 @@ public class EditSubCommand implements ServerCommand {
             }
             updateSingleEntry(Main.TABLE_NAME_HEALTH, targetInfo.uuid, Map.of("max_health", maxHealth), sender);
             applyHealth(onlineTarget, null, maxHealth, null, null);
-        }, Main.getInstance());
+        });
     }
 
     private void handleHealthScaledEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -292,7 +298,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_HEALTH, Map.of("health_scaled", scaled), sender);
                 return;
@@ -301,7 +307,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_HEALTH, targetInfo.uuid, Map.of("health_scaled", scaled), sender);
             applyHealth(onlineTarget, null, null, scaled, null);
-        }, Main.getInstance());
+        });
     }
 
     private void handleHealthScaleEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -314,7 +320,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_HEALTH, Map.of("health_scale", scale), sender);
                 return;
@@ -323,7 +329,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_HEALTH, targetInfo.uuid, Map.of("health_scale", scale), sender);
             applyHealth(onlineTarget, null, null, null, scale);
-        }, Main.getInstance());
+        });
     }
 
     private void handleSaturationEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -336,7 +342,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_SATURATION, Map.of("saturation", saturation), sender);
                 return;
@@ -345,7 +351,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_SATURATION, targetInfo.uuid, Map.of("saturation", saturation), sender);
             applySaturation(onlineTarget, saturation, null);
-        }, Main.getInstance());
+        });
     }
 
     private void handleFoodLevelEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -358,7 +364,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_SATURATION, Map.of("food_level", food), sender);
                 return;
@@ -367,7 +373,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_SATURATION, targetInfo.uuid, Map.of("food_level", food), sender);
             applySaturation(onlineTarget, null, food);
-        }, Main.getInstance());
+        });
     }
 
     private void handleGamemodeEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -383,7 +389,7 @@ public class EditSubCommand implements ServerCommand {
             return;
         }
         String gamemodeString = gameMode.name();
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_GAMEMODE, Map.of("gamemode", gamemodeString), sender);
                 return;
@@ -392,7 +398,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_GAMEMODE, targetInfo.uuid, Map.of("gamemode", gamemodeString), sender);
             applyGamemode(onlineTarget, gameMode);
-        }, Main.getInstance());
+        });
     }
 
     private void handleLocationEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -424,7 +430,7 @@ public class EditSubCommand implements ServerCommand {
         String finalWorldName = worldName;
         Float finalYaw = yaw;
         Float finalPitch = pitch;
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateLocationForAll(finalWorldName, x, y, z, finalYaw, finalPitch, sender);
                 return;
@@ -451,7 +457,7 @@ public class EditSubCommand implements ServerCommand {
 
             updateSingleEntry(Main.TABLE_NAME_LOCATION, targetInfo.uuid, update, sender);
             applyLocation(onlineTarget, finalWorldName, x, y, z, finalYaw, finalPitch);
-        }, Main.getInstance());
+        });
     }
 
     private void handleMoneyEdit(CommandSender sender, String targetArg, Player onlineTarget, boolean wildcard, String[] strings){
@@ -464,7 +470,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        Scheduler.runAsync(() -> {
+        runAsyncTask(() -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_MONEY, Map.of("money", money), sender);
                 return;
@@ -473,7 +479,7 @@ public class EditSubCommand implements ServerCommand {
             if(targetInfo == null) return;
             updateSingleEntry(Main.TABLE_NAME_MONEY, targetInfo.uuid, Map.of("money", money), sender);
             applyMoney(onlineTarget, money);
-        }, Main.getInstance());
+        });
     }
 
     private void updateAllEntries(String table, Map<String, Object> update, CommandSender sender){
@@ -592,21 +598,21 @@ public class EditSubCommand implements ServerCommand {
 
     private void applyExp(Player onlineTarget, Float exp, Integer level){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        Scheduler.run(() -> {
+        runForPlayer(onlineTarget, () -> {
             if(exp != null){
                 onlineTarget.setExp(exp);
             }
             if(level != null){
                 onlineTarget.setLevel(level);
             }
-        }, Main.getInstance());
+        });
     }
 
     private void applyHealth(Player onlineTarget, Double health, Double maxHealth, Boolean scaled, Double scale){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        Scheduler.run(() -> {
-            if(maxHealth != null && onlineTarget.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH) != null){
-                onlineTarget.getAttribute(org.bukkit.attribute.Attribute.GENERIC_MAX_HEALTH).setBaseValue(maxHealth);
+        runForPlayer(onlineTarget, () -> {
+            if(maxHealth != null && onlineTarget.getAttribute(Attribute.MAX_HEALTH) != null){
+                onlineTarget.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
             }
             if(health != null){
                 double limit = onlineTarget.getMaxHealth();
@@ -621,42 +627,62 @@ public class EditSubCommand implements ServerCommand {
                 }
                 onlineTarget.setHealthScale(scale);
             }
-        }, Main.getInstance());
+        });
     }
 
     private void applySaturation(Player onlineTarget, Float saturation, Integer foodLevel){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        Scheduler.run(() -> {
+        runForPlayer(onlineTarget, () -> {
             if(saturation != null){
                 onlineTarget.setSaturation(saturation);
             }
             if(foodLevel != null){
                 onlineTarget.setFoodLevel(foodLevel);
             }
-        }, Main.getInstance());
+        });
     }
 
     private void applyGamemode(Player onlineTarget, GameMode gamemode){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        Scheduler.run(() -> onlineTarget.setGameMode(gamemode), Main.getInstance());
+        runForPlayer(onlineTarget, () -> onlineTarget.setGameMode(gamemode));
     }
 
     private void applyLocation(Player onlineTarget, String worldName, double x, double y, double z, Float yaw, Float pitch){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        Scheduler.run(() -> {
+        runForPlayer(onlineTarget, () -> {
             World world = Bukkit.getWorld(worldName);
             if(world == null) return;
             float useYaw = yaw != null ? yaw : onlineTarget.getLocation().getYaw();
             float usePitch = pitch != null ? pitch : onlineTarget.getLocation().getPitch();
             Location location = new Location(world, x, y, z, useYaw, usePitch);
-            onlineTarget.teleport(location);
-        }, Main.getInstance());
+            if(Main.IS_FOLIA){
+                onlineTarget.teleportAsync(location);
+            }else {
+                onlineTarget.teleport(location);
+            }
+        });
     }
 
     private void applyMoney(Player onlineTarget, double money){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
         if(Main.vaultManager == null) return;
-        Scheduler.run(() -> Main.vaultManager.setBalance(onlineTarget, money), Main.getInstance());
+        runForPlayer(onlineTarget, () -> Main.vaultManager.setBalance(onlineTarget, money));
+    }
+
+    private void runForPlayer(Player player, Runnable task){
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runEntity(player, task);
+            return;
+        }
+        Scheduler.run(task, Main.getInstance());
+    }
+
+    private void runAsyncTask(Runnable task){
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runAsync(task);
+            return;
+        }
+        Scheduler.runAsync(task, Main.getInstance());
     }
 
     private Double getHealthMax(String uuid){
@@ -980,6 +1006,10 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void sendMessage(CommandSender sender, String message){
+        if(Main.IS_FOLIA && sender instanceof Player player){
+            BridgeScheduler.runEntity(player, () -> sender.sendMessage(message));
+            return;
+        }
         Scheduler.run(() -> sender.sendMessage(message), Main.getInstance());
     }
 

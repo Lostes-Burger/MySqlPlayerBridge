@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -34,9 +35,19 @@ public class SaturationDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String uuid = player.getUniqueId().toString();
+                    float saturation = player.getSaturation();
+                    int foodLevel = player.getFoodLevel();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, saturation, foodLevel));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -46,9 +57,13 @@ public class SaturationDataManager {
 
     public void saveManual(String uuid, float saturation, int foodlevel, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid, saturation, foodlevel);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, saturation, foodlevel));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid, saturation, foodlevel);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid, saturation, foodlevel);
         }
@@ -83,7 +98,8 @@ public class SaturationDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -92,11 +108,11 @@ public class SaturationDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_SATURATION,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Saturation", "load", Main.TABLE_NAME_SATURATION, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -107,24 +123,38 @@ public class SaturationDataManager {
             float saturation = (Float) entry.get("saturation");
             int food_level = (Integer) entry.get("food_level");
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     player.setSaturation(saturation);
                     player.setFoodLevel(food_level);
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Saturation", "apply", Main.TABLE_NAME_SATURATION, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            e, Map.of("uuid", playerUuid), true);
                     HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
+                    data.put("uuid", playerUuid);
                     errorHandler.saveSyncData(errorId, "Saturation", "apply", Main.TABLE_NAME_SATURATION, player, data);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
-        }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
+
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

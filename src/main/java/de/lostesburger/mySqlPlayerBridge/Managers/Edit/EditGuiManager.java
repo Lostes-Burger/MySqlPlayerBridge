@@ -4,6 +4,7 @@ import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -126,25 +127,43 @@ public class EditGuiManager implements Listener {
             return;
         }
 
-        Scheduler.runAsync(() -> {
+        Player admin = (Player) event.getPlayer();
+        Runnable saveTask = () -> {
             MySqlManager manager = Main.mySqlConnectionHandler.getManager();
             String table = getTableForInventoryType(session.type);
             String column = getColumnForInventoryType(session.type);
             try {
                 manager.setOrUpdateEntry(table, Map.of("uuid", session.targetUuid.toString()), Map.of(column, serialized));
             } catch (MySqlError e) {
-                Scheduler.run(() -> event.getPlayer().sendMessage(Chat.getMessage("edit-db-error")), Main.getInstance());
+                if(Main.IS_FOLIA){
+                    BridgeScheduler.runEntity(admin, () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
+                }else {
+                    Scheduler.run(() -> admin.sendMessage(Chat.getMessage("edit-db-error")), Main.getInstance());
+                }
                 throw new RuntimeException(e);
             }
 
-            Scheduler.run(() -> {
+            if(Main.IS_FOLIA){
                 Player target = Bukkit.getPlayer(session.targetUuid);
                 if(target != null){
-                    applyToPlayer(target, session.type, contents);
+                    BridgeScheduler.runEntity(target, () -> applyToPlayer(target, session.type, contents));
                 }
-                event.getPlayer().sendMessage(Chat.getMessage("edit-success"));
-            }, Main.getInstance());
-        }, Main.getInstance());
+                BridgeScheduler.runEntity(admin, () -> admin.sendMessage(Chat.getMessage("edit-success")));
+            }else {
+                Scheduler.run(() -> {
+                    Player target = Bukkit.getPlayer(session.targetUuid);
+                    if(target != null){
+                        applyToPlayer(target, session.type, contents);
+                    }
+                    admin.sendMessage(Chat.getMessage("edit-success"));
+                }, Main.getInstance());
+            }
+        };
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runAsync(saveTask);
+        }else {
+            Scheduler.runAsync(saveTask, Main.getInstance());
+        }
     }
 
     @EventHandler

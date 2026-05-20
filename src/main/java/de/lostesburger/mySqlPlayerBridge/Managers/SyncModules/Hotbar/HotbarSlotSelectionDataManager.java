@@ -5,6 +5,7 @@ import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -32,9 +33,18 @@ public class HotbarSlotSelectionDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String uuid = player.getUniqueId().toString();
+                    int slot = player.getInventory().getHeldItemSlot();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, slot));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -42,9 +52,13 @@ public class HotbarSlotSelectionDataManager {
 
     public void saveManual(String uuid, int slot, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid, slot);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, slot));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid, slot);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid, slot);
         }
@@ -71,7 +85,8 @@ public class HotbarSlotSelectionDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -80,11 +95,11 @@ public class HotbarSlotSelectionDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("HotbarSlot", "load", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -94,19 +109,33 @@ public class HotbarSlotSelectionDataManager {
             }
             int slot = (Integer) entry.get("slot");
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     this.setHotbarSlot(player, slot);
                 } catch (RuntimeException e) {
                     new MySqlErrorHandler().logSyncError("HotbarSlot", "apply", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
-                            e, Map.of("uuid", player.getUniqueId().toString(), "slot", slot), true);
+                            e, Map.of("uuid", playerUuid, "slot", slot), true);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
-        }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
+
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 

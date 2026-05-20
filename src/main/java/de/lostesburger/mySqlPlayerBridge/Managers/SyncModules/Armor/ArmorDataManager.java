@@ -6,6 +6,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -36,9 +37,29 @@ public class ArmorDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String serializedArmor;
+                    try {
+                        if(Main.nbtSerializer == null){
+                            throw new NBTSerializationException("nbtserializer not loaded on serialize", null);
+                        }
+                        serializedArmor = Main.nbtSerializer.serialize(player.getInventory().getArmorContents());
+                        if(Main.DEBUG){ System.out.println("Armor: "+serializedArmor); }
+                    } catch (Exception e) {
+                        new MySqlErrorHandler().logSyncError("Armor", "serialize", Main.TABLE_NAME_ARMOR, player,
+                                e, Map.of("uuid", player.getUniqueId().toString()), false);
+                        return;
+                    }
+                    String uuid = player.getUniqueId().toString();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, serializedArmor));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -47,9 +68,13 @@ public class ArmorDataManager {
 
     public void saveManual(UUID uuid, String serializedArmor, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), serializedArmor);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), serializedArmor));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), serializedArmor);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), serializedArmor);
         }
@@ -94,7 +119,8 @@ public class ArmorDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -103,11 +129,11 @@ public class ArmorDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_ARMOR,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Armor", "load", Main.TABLE_NAME_ARMOR, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -116,7 +142,7 @@ public class ArmorDataManager {
                 return;
             }
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     if(Main.nbtSerializer == null){
                         throw new NBTSerializationException("nbtserializer not loaded", null);
@@ -125,17 +151,31 @@ public class ArmorDataManager {
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Armor", "deserialize", Main.TABLE_NAME_ARMOR, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            e, Map.of("uuid", playerUuid), true);
                     HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
+                    data.put("uuid", playerUuid);
                     errorHandler.saveSyncData(errorId, "Armor", "deserialize", Main.TABLE_NAME_ARMOR, player, data);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
-        }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
+
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

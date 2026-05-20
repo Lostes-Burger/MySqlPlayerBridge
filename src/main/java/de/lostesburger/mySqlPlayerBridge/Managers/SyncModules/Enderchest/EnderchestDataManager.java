@@ -6,6 +6,7 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
+import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
@@ -36,9 +37,29 @@ public class EnderchestDataManager {
 
     public void savePlayer(Player player, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.save(player);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runEntity(player, () -> {
+                    if(!this.enabled) return;
+                    String serializedEnderchest;
+                    try {
+                        if(Main.nbtSerializer == null){
+                            throw new NBTSerializationException("nbtserializer not loaded on serialize", null);
+                        }
+                        serializedEnderchest = Main.nbtSerializer.serialize(player.getEnderChest().getContents());
+                        if(Main.DEBUG){ System.out.println("EC: "+serializedEnderchest); }
+                    } catch (Exception e) {
+                        new MySqlErrorHandler().logSyncError("Enderchest", "serialize", Main.TABLE_NAME_ENDERCHEST, player,
+                                e, Map.of("uuid", player.getUniqueId().toString()), false);
+                        return;
+                    }
+                    String uuid = player.getUniqueId().toString();
+                    BridgeScheduler.runAsync(() -> this.insertToMySql(uuid, serializedEnderchest));
+                });
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.save(player);
+                }, Main.getInstance());
+            }
         }else {
             this.save(player);
         }
@@ -47,9 +68,13 @@ public class EnderchestDataManager {
 
     public void saveManual(UUID uuid, String serializedEnderchest, boolean async){
         if(async){
-            Scheduler.runAsync(() -> {
-                this.insertToMySql(uuid.toString(), serializedEnderchest);
-            }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                BridgeScheduler.runAsync(() -> this.insertToMySql(uuid.toString(), serializedEnderchest));
+            } else {
+                Scheduler.runAsync(() -> {
+                    this.insertToMySql(uuid.toString(), serializedEnderchest);
+                }, Main.getInstance());
+            }
         }else {
             this.insertToMySql(uuid.toString(), serializedEnderchest);
         }
@@ -94,7 +119,8 @@ public class EnderchestDataManager {
 
     public CompletableFuture<Void> applyPlayer(Player player){
         CompletableFuture<Void> future = new CompletableFuture<>();
-        Scheduler.runAsync(() -> {
+        String playerUuid = player.getUniqueId().toString();
+        Runnable loadTask = () -> {
             if(!this.enabled){
                 future.complete(null);
                 return;
@@ -103,11 +129,11 @@ public class EnderchestDataManager {
             Map<String, Object> entry;
             try {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_ENDERCHEST,
-                        Map.of("uuid", player.getUniqueId().toString())
+                        Map.of("uuid", playerUuid)
                 );
             } catch (MySqlError e) {
                 new MySqlErrorHandler().logSyncError("Enderchest", "load", Main.TABLE_NAME_ENDERCHEST, player,
-                        e, Map.of("uuid", player.getUniqueId().toString()), true);
+                        e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
                 return;
             }
@@ -116,7 +142,7 @@ public class EnderchestDataManager {
                 return;
             }
 
-            Scheduler.run(() -> {
+            Runnable applyTask = () -> {
                 try {
                     if(Main.nbtSerializer == null){
                         throw new NBTSerializationException("nbtserializer not loaded", null);
@@ -125,17 +151,31 @@ public class EnderchestDataManager {
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player,
-                            e, Map.of("uuid", player.getUniqueId().toString()), true);
+                            e, Map.of("uuid", playerUuid), true);
                     HashMap<String, Object> data = new HashMap<>(entry);
-                    data.put("uuid", player.getUniqueId().toString());
+                    data.put("uuid", playerUuid);
                     errorHandler.saveSyncData(errorId, "Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player, data);
                     future.completeExceptionally(e);
                     return;
                 }
                 future.complete(null);
-            }, Main.getInstance());
+            };
 
-        }, Main.getInstance());
+            if (Main.IS_FOLIA) {
+                boolean scheduled = BridgeScheduler.runEntity(player, applyTask, () -> future.complete(null));
+                if (!scheduled) {
+                    future.complete(null);
+                }
+            } else {
+                Scheduler.run(applyTask, Main.getInstance());
+            }
+
+        };
+        if (Main.IS_FOLIA) {
+            BridgeScheduler.runAsync(loadTask);
+        } else {
+            Scheduler.runAsync(loadTask, Main.getInstance());
+        }
         return future;
     }
 }

@@ -3,10 +3,6 @@ package de.lostesburger.mySqlPlayerBridge.Serialization.Serialization;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
-import de.craftcore.craftcore.global.scheduler.SchedulerException;
-import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.advancement.Advancement;
 import org.bukkit.entity.Player;
 import org.bukkit.Bukkit;
@@ -69,22 +65,8 @@ public class AdvancementSerializer {
             Set<String> awardedCriteria = new HashSet<>(Arrays.asList(awardedCriteriaString.split(",")));
 
             if (applyAdvancements) {
-                if(!Minecraft.isFolia()){
-                    Scheduler.run(() -> {
-                        for (String criterion : awardedCriteria) {
-                            progress.awardCriteria(criterion);
-                        }
-                    }, Main.getInstance());
-                }else {
-                    try {
-                        Scheduler.runRegionalScheduler(() -> {
-                            for (String criterion : awardedCriteria) {
-                                progress.awardCriteria(criterion);
-                            }
-                        }, Main.getInstance(), player.getLocation());
-                    } catch (SchedulerException e) {
-                        throw new RuntimeException(e);
-                    }
+                for (String criterion : awardedCriteria) {
+                    progress.awardCriteria(criterion);
                 }
             }
         }

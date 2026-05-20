@@ -3,9 +3,6 @@ package de.lostesburger.mySqlPlayerBridge.Serialization.Serialization;
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
-import de.lostesburger.mySqlPlayerBridge.Main;
 import org.bukkit.Statistic;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Player;
@@ -110,56 +107,24 @@ public class StatsSerializer {
                 try {
                     switch (stat.getType()) {
                         case UNTYPED -> {
-                            if(Minecraft.isFolia()){
-                                Scheduler.runRegionalScheduler(() -> {
-                                    player.setStatistic(stat, value);
-                                }, Main.getInstance(), player.getLocation());
-                            }else {
-                                Scheduler.run(() -> {
-                                    player.setStatistic(stat, value);
-                                }, Main.getInstance());
-                            }
+                            player.setStatistic(stat, value);
                         }
                         case BLOCK -> {
                             Material block = Material.matchMaterial(statObj.get("subType").getAsString());
                             if (block != null && block.isBlock()){
-                                if(Minecraft.isFolia()){
-                                    Scheduler.runRegionalScheduler(() -> {
-                                        player.setStatistic(stat, block, value);
-                                    }, Main.getInstance(), player.getLocation());
-                                }else {
-                                    Scheduler.run(() -> {
-                                        player.setStatistic(stat, block, value);
-                                    }, Main.getInstance());
-                                }
+                                player.setStatistic(stat, block, value);
                             }
                         }
                         case ITEM -> {
                             Material item = Material.matchMaterial(statObj.get("subType").getAsString());
                             if (item != null && item.isItem()){
-                                if(Minecraft.isFolia()){
-                                    Scheduler.runRegionalScheduler(() -> {
-                                        player.setStatistic(stat, item, value);
-                                    }, Main.getInstance(), player.getLocation());
-                                }else {
-                                    Scheduler.run(() -> {
-                                        player.setStatistic(stat, item, value);
-                                    }, Main.getInstance());
-                                }
+                                player.setStatistic(stat, item, value);
                             }
                         }
                         case ENTITY -> {
                             try {
                                 EntityType entity = EntityType.valueOf(statObj.get("subType").getAsString());
-                                if(Minecraft.isFolia()){
-                                    Scheduler.runRegionalScheduler(() -> {
-                                        player.setStatistic(stat, entity, value);
-                                    }, Main.getInstance(), player.getLocation());
-                                }else {
-                                    Scheduler.run(() -> {
-                                        player.setStatistic(stat, entity, value);
-                                    }, Main.getInstance());
-                                }
+                                player.setStatistic(stat, entity, value);
                             } catch (Exception ignored) {
                             }
                         }
