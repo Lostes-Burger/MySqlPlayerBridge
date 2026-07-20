@@ -35,6 +35,10 @@ settings:
   # Suppress all warnings issued by the plugin. Enabling this suppression is not recommended.
   suppress-warnings: false
 
+# When running different Versions across servers enable this to ensure newer items being blocked correctly
+cross-version-support:
+  deny-join-on-item-sync-error: true
+
 sync:
   inventory: false
   # synchronizes a player's hotbar slot selection

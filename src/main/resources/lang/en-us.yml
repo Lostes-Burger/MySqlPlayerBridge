@@ -5,6 +5,7 @@ no-database-config-error: "§cEnter mysql credentials in the mysql.yml config. R
 sync-success: "§7Player data§a successfully§9 synced!"
 sync-failed: "§cPlayer data could not be synced. Please contact staff or try joining again."
 sync-timeout: "§cPlayer sync timed out after 5 seconds. Please try again and contact staff."
+cross-version-deny-kick: "§cYour player data contains items that are not supported on this server. Please join a newer server and remove the items first."
 created-data: "§7Player data§a successfully §9created"
 no-entry-protection-kick: "§cNo entry protection enabled.§7 You have no existing player data. You can't join this server before joining the parent server first and receiving your player data. If you think this is an error, please contact server staff."
 

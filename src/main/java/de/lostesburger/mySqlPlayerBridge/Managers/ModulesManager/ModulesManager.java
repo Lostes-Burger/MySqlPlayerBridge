@@ -19,6 +19,7 @@ public class ModulesManager {
     public String pathSyncAdvancements;
     public String pathSyncStats;
     public String pathSyncSelectedHotbarSlot;
+    public String pathCrossVersionDenyJoinOnItemSyncError;
 
     public boolean kickOnSyncFail;
     public boolean syncEnderChest;
@@ -35,6 +36,7 @@ public class ModulesManager {
     public boolean syncAdvancements;
     public boolean syncStats;
     public boolean syncSelectedHotbarSlot;
+    public boolean crossVersionDenyJoinOnItemSyncError;
 
 
     public ModulesManager(){
@@ -54,6 +56,7 @@ public class ModulesManager {
         this.pathSyncAdvancements = "sync.advancements";
         this.pathSyncStats = "sync.statistics";
         this.pathSyncSelectedHotbarSlot = "sync.selected_hotbar_slot";
+        this.pathCrossVersionDenyJoinOnItemSyncError = "cross-version-support.deny-join-on-item-sync-error";
 
 
         this.syncVaultEconomy = conf.getBoolean(this.pathSyncVaultEconomy);
@@ -71,5 +74,6 @@ public class ModulesManager {
         this.syncAdvancements = conf.getBoolean(this.pathSyncAdvancements);
         this.syncStats = conf.getBoolean(this.pathSyncStats);
         this.syncSelectedHotbarSlot = conf.getBoolean(this.pathSyncSelectedHotbarSlot);
+        this.crossVersionDenyJoinOnItemSyncError = conf.getBoolean(this.pathCrossVersionDenyJoinOnItemSyncError, true);
     }
 }

@@ -64,6 +64,22 @@ public class PlayerManager {
         }, Main.getInstance());
     }
 
+    public static void crossVersionDenyKick(Player player){
+        if(Main.IS_FOLIA){
+            BridgeScheduler.runEntity(player, () -> {
+                String msg = Chat.getMessage("cross-version-deny-kick");
+                player.sendMessage(msg);
+                player.kickPlayer(msg);
+            });
+            return;
+        }
+        Scheduler.run(() -> {
+            String msg = Chat.getMessage("cross-version-deny-kick");
+            player.sendMessage(msg);
+            player.kickPlayer(msg);
+        }, Main.getInstance());
+    }
+
     public static void registerPlayer(Player player){
         updatePlayerIndex(player, true);
     }

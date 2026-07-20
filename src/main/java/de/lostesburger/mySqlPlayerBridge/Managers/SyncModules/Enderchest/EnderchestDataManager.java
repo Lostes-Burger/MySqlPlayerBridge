@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Enderchest;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -151,11 +152,15 @@ public class EnderchestDataManager {
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player,
-                            e, Map.of("uuid", playerUuid), true);
+                            e, Map.of("uuid", playerUuid), false);
                     HashMap<String, Object> data = new HashMap<>(entry);
                     data.put("uuid", playerUuid);
                     errorHandler.saveSyncData(errorId, "Enderchest", "deserialize", Main.TABLE_NAME_ENDERCHEST, player, data);
-                    future.completeExceptionally(e);
+                    if(Main.modulesManager.crossVersionDenyJoinOnItemSyncError){
+                        future.completeExceptionally(new CrossVersionItemSyncException("Enderchest contains items not supported by this server version", e));
+                    }else {
+                        future.completeExceptionally(e);
+                    }
                     return;
                 }
                 future.complete(null);

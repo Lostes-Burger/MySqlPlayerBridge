@@ -26,6 +26,7 @@ public class MySqlDataManager {
     public final boolean DEBUG = false;
     private final Set<UUID> activeSyncPlayers = ConcurrentHashMap.newKeySet();
     private final Set<UUID> joinSyncPlayers = ConcurrentHashMap.newKeySet();
+    private final Set<UUID> skipNextQuitSavePlayers = ConcurrentHashMap.newKeySet();
     private final ConcurrentHashMap<UUID, Object> syncMonitors = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<UUID, Set<String>> pendingApplyModules = new ConcurrentHashMap<>();
 
@@ -109,6 +110,14 @@ public class MySqlDataManager {
 
     public boolean isJoinSyncLocked(UUID playerUuid){
         return this.joinSyncPlayers.contains(playerUuid);
+    }
+
+    public void skipNextQuitSave(UUID playerUuid){
+        this.skipNextQuitSavePlayers.add(playerUuid);
+    }
+
+    public boolean consumeSkipNextQuitSave(UUID playerUuid){
+        return this.skipNextQuitSavePlayers.remove(playerUuid);
     }
 
     public SyncAcquireResult acquireSyncLock(UUID playerUuid, boolean joinSync, long timeoutMs){

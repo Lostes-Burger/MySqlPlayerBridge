@@ -5,6 +5,7 @@ no-database-config-error: "§cGib die fehlenden MySql Zugangsdaten in der mysql.
 sync-success: "§7Deine Spielerdaten wurden§a erfolgreich§9 synchronisiert"
 sync-failed: "§cDeine Spielerdaten konnten nicht synchronisiert werden! Versuche es erneut und Kontaktiere umgehend das Adminteam!"
 sync-timeout: "§cDein Sync hat das 5-Sekunden-Limit überschritten. Versuche es erneut und informiere das Adminteam."
+cross-version-deny-kick: "§cDeine Spielerdaten enthalten Items, die auf diesem Server nicht unterstützt werden. Bitte joine zuerst einen neueren Server und entferne die Items."
 created-data: "§7Deine Spielerdaten wurden§a erfolgreich §9erstellt"
 no-entry-protection-kick: "§cZugangskontrolle ist Aktiviert!§7 Du hast keine existierende Spielerdaten. Du kannst diesen Server nicht betreten, bevor du auf dem Hauptserver warst und deine Spielerdaten erstellt wurden! Wenn du denkst, dass es sich hierbei um ein Fehler handelt, kontaktiere das Adminteam!"
 

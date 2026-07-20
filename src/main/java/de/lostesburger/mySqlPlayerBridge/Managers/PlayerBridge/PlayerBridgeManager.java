@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
@@ -63,6 +64,12 @@ public class PlayerBridgeManager implements Listener {
                                 try {
                                     if(throwable == null){
                                         PlayerManager.sendDataLoadedMessage(player);
+                                        return;
+                                    }
+                                    this.mySqlDataManager.skipNextQuitSave(playerUuid);
+                                    if(this.isCrossVersionItemSyncThrowable(throwable)){
+                                        Main.getInstance().getLogger().log(Level.WARNING, "Join denied for player " + player.getName() + " (" + playerUuid + ") because item data is not supported by this server version", throwable);
+                                        PlayerManager.crossVersionDenyKick(player);
                                         return;
                                     }
                                     if(this.isTimeoutThrowable(throwable)){
@@ -135,14 +142,29 @@ public class PlayerBridgeManager implements Listener {
         return false;
     }
 
+    private boolean isCrossVersionItemSyncThrowable(Throwable throwable){
+        Throwable current = throwable;
+        while (current != null){
+            if(current instanceof CrossVersionItemSyncException){
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerLeave(PlayerQuitEvent event){
         Player player = event.getPlayer();
         PlayerManager.updatePlayerIndex(player, false);
+        if(this.mySqlDataManager.consumeSkipNextQuitSave(player.getUniqueId())){
+            return;
+        }
         this.mySqlDataManager.savePlayerData(player, false);
     }
 
     private void handleJoinSyncAcquireFailure(Player player, MySqlDataManager.SyncAcquireResult acquireResult){
+        this.mySqlDataManager.skipNextQuitSave(player.getUniqueId());
         if(acquireResult == MySqlDataManager.SyncAcquireResult.TIMEOUT){
             Main.getInstance().getLogger().warning("Join sync lock wait timeout for player " + player.getName() + " (" + player.getUniqueId() + ")");
             PlayerManager.syncTimeoutKick(player);

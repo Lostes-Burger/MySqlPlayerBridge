@@ -3,6 +3,7 @@ package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Inventory;
 import de.craftcore.craftcore.global.mysql.MySqlError;
 import de.craftcore.craftcore.global.mysql.MySqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -150,11 +151,15 @@ public class InventoryDataManager {
                 } catch (Exception e) {
                     MySqlErrorHandler errorHandler = new MySqlErrorHandler();
                     String errorId = errorHandler.logSyncError("Inventory", "deserialize", Main.TABLE_NAME_INVENTORY, player,
-                            e, Map.of("uuid", playerUuid), true);
+                            e, Map.of("uuid", playerUuid), false);
                     HashMap<String, Object> data = new HashMap<>(entry);
                     data.put("uuid", playerUuid);
                     errorHandler.saveSyncData(errorId, "Inventory", "deserialize", Main.TABLE_NAME_INVENTORY, player, data);
-                    future.completeExceptionally(e);
+                    if(Main.modulesManager.crossVersionDenyJoinOnItemSyncError){
+                        future.completeExceptionally(new CrossVersionItemSyncException("Inventory contains items not supported by this server version", e));
+                    }else {
+                        future.completeExceptionally(e);
+                    }
                     return;
                 }
                 future.complete(null);
