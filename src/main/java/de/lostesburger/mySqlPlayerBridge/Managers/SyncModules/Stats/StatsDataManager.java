@@ -19,7 +19,7 @@ public class StatsDataManager {
     private final MySqlManager mySqlManager;
 
     public StatsDataManager() {
-        this.enabled = Main.modulesManager.syncAdvancements;
+        this.enabled = Main.modulesManager.syncStats;
         this.mySqlManager = Main.mySqlConnectionHandler.getManager();
 
         try {
