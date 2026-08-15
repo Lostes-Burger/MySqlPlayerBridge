@@ -49,13 +49,8 @@ public class AdvancementSerializer {
             boolean done = advancementObj.get("done").getAsBoolean();
             String awardedCriteriaString = advancementObj.get("awardedCriteria").getAsString();
 
-            if (advancementKeyString.startsWith("minecraft:")) {
-                advancementKeyString = advancementKeyString.substring("minecraft:".length());
-            }
-
-
-            NamespacedKey advancementKey = new NamespacedKey("minecraft", advancementKeyString);
-            if(DEBUG) System.out.println("[AdvancementSerializer] Advancement namespaced key (deserialize): "+advancementKey.toString());
+            NamespacedKey advancementKey = NamespacedKey.fromString(advancementKeyString);
+            if(DEBUG) System.out.println("[AdvancementSerializer] Advancement namespaced key (deserialize): "+ (advancementKey != null ? advancementKey.toString() : "null"));
             if (advancementKey == null) return null;
 
             Advancement advancement = Bukkit.getAdvancement(advancementKey);
