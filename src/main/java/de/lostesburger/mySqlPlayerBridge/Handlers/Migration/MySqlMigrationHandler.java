@@ -6,11 +6,6 @@ import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
-import org.bukkit.Bukkit;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.HandlerList;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,7 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.logging.Level;
 
-public class MySqlMigrationHandler implements Listener {
+public class MySqlMigrationHandler {
     private static final long MIGRATION_FAILSAFE_TIMEOUT_MS = 15 * 60 * 1000L;
     private final MySqlManager mySqlManager;
     private final CompletableFuture<Void> migrationCompletion = new CompletableFuture<>();
@@ -35,11 +30,6 @@ public class MySqlMigrationHandler implements Listener {
         if(runningMigration){
             Main.getInstance().getLogger().warning("[Migration detected] [Database structure changed] The database structure has changed! The server will now begin running the migration. All player connections will be terminated and future incoming connections refused until the migration is done!");
             Main.getInstance().getLogger().warning("[Migration detected] [Checking conditions] Checking if other Server is currently handling the migration...");
-
-            Bukkit.getServer().getPluginManager().registerEvents(this, Main.getInstance());
-            Bukkit.getOnlinePlayers().forEach(player -> {
-                player.kickPlayer("§c[MySqlPlayerBridge] Running database migration -> Try again later!");
-            });
 
             if(this.isRunningMigration()){
                 Main.getInstance().getLogger().warning("[Database Migration] [Failed conditions] Another Server is currently handling the migration process. This server will wait until the migration is finished!");
@@ -133,15 +123,15 @@ public class MySqlMigrationHandler implements Listener {
             throw new RuntimeException(e);
         }
     }
-    public void runWhenMigrationComplete(Runnable runnable) {
+    public void runWhenMigrationComplete(Runnable runnable, Runnable failureHandler) {
         this.migrationCompletion.whenComplete((ignored, throwable) -> {
             if(throwable != null){
                 Main.getInstance().getLogger().log(Level.SEVERE, "[Database Migration] Migration failed. Plugin startup will not continue.", throwable);
+                failureHandler.run();
                 return;
             }
             BridgeScheduler.runGlobal(() -> {
                 if(Main.getInstance().isEnabled()){
-                    HandlerList.unregisterAll(this);
                     runnable.run();
                 }
             });
@@ -211,20 +201,13 @@ public class MySqlMigrationHandler implements Listener {
                         Map.of("running_migration", false)
                 );
                 this.runningMigration = false;
-                Main.getInstance().getLogger().warning("[Database Migration] [Completed] Migration completed successfully! Players are now able to join.");
+                Main.getInstance().getLogger().warning("[Database Migration] [Completed] Migration completed successfully! Plugin startup will now continue.");
                 this.migrationCompletion.complete(null);
             } catch (Exception e) {
                 this.migrationCompletion.completeExceptionally(e);
             }
         };
         BridgeScheduler.runAsync(migrationTask);
-    }
-
-    @EventHandler
-    private void terminateJoin(PlayerJoinEvent event){
-        if(runningMigration){
-            event.getPlayer().kickPlayer("§c[MySqlPlayerBridge] Server is running database migration -> Try again later!");
-        }
     }
 
     private void migrateLegacyPlayerIndexTable(){

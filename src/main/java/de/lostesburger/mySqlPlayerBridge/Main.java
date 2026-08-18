@@ -9,6 +9,7 @@ import de.lostesburger.mySqlPlayerBridge.Managers.Command.CommandManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.ModulesManager.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
+import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.StartupJoinLockManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
 import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
@@ -49,6 +50,7 @@ public final class Main extends JavaPlugin {
     public static ModulesManager modulesManager;
     public static PlayerManager playerManager;
     public static PlayerBridgeManager playerBridgeManager;
+    public static StartupJoinLockManager startupJoinLockManager;
     public static CommandManager commandManager;
     public static SyncManager syncManager;
     public static MySqlMigrationHandler mySqlMigrationHandler;
@@ -132,6 +134,7 @@ public final class Main extends JavaPlugin {
 
         BukkitYMLConfig ymlConfigMessages = new BukkitYMLConfig(this, "lang/"+LANGUAGE+".yml");
         messages = ymlConfigMessages.getConfig();
+        startupJoinLockManager = new StartupJoinLockManager();
 
         this.getLogger().log(Level.INFO, "checking for configuration changes ...");
 
@@ -164,7 +167,9 @@ public final class Main extends JavaPlugin {
         new GitHubUpdateCheckHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
 
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
+        startupJoinLockManager.markWaitingForDatabase();
         if (!new DatabaseConfigCheck(mysqlConf).isSetup()) {
+            startupJoinLockManager.markFailed();
             Bukkit.broadcastMessage(Chat.getMessage("no-database-config-error"));
             return;
         }
@@ -213,42 +218,63 @@ public final class Main extends JavaPlugin {
         /**
          * Database
          */
-        mySqlConnectionHandler = new MySqlConnectionHandler(
-                mysqlConf.getString("host"),
-                mysqlConf.getInt("port"),
-                mysqlConf.getString("database"),
-                mysqlConf.getString("user"),
-                mysqlConf.getString("password")
-        );
+        try {
+            mySqlConnectionHandler = new MySqlConnectionHandler(
+                    mysqlConf.getString("host"),
+                    mysqlConf.getInt("port"),
+                    mysqlConf.getString("database"),
+                    mysqlConf.getString("user"),
+                    mysqlConf.getString("password")
+            );
+            if(!mySqlConnectionHandler.getMySQL().isConnectionAlive()){
+                throw new IllegalStateException("MySQL connection is not alive after initialization");
+            }
 
-        /**
-         * SyncModules
-         */
-        syncManager = new SyncManager();
+            /**
+             * SyncModules
+             */
+            syncManager = new SyncManager();
 
-        /**
-         * Migration
-         */
-        this.getLogger().log(Level.INFO, "Checking for migrations...");
-        mySqlMigrationHandler = new MySqlMigrationHandler();
+            /**
+             * Migration
+             */
+            startupJoinLockManager.markMigrating();
+            this.getLogger().log(Level.INFO, "Checking for migrations...");
+            mySqlMigrationHandler = new MySqlMigrationHandler();
 
 
-        /**
-         * Managers
-         */
-        mySqlMigrationHandler.runWhenMigrationComplete(() -> {
-            playerManager = new PlayerManager();
-            playerBridgeManager = new PlayerBridgeManager();
-            commandManager = new CommandManager();
-        });
+            /**
+             * Managers
+             */
+            mySqlMigrationHandler.runWhenMigrationComplete(() -> {
+                try {
+                    if(!mySqlConnectionHandler.getMySqlDataManager().checkDatabaseConnection()){
+                        throw new IllegalStateException("MySQL connection is not alive after migration");
+                    }
+                    playerManager = new PlayerManager();
+                    playerBridgeManager = new PlayerBridgeManager();
+                    commandManager = new CommandManager();
+                    startupJoinLockManager.markBridgeReady();
+                } catch (RuntimeException e) {
+                    startupJoinLockManager.markFailed();
+                    getLogger().log(Level.SEVERE, "MySqlPlayerBridge manager initialization failed. Player connections remain locked.", e);
+                }
+            }, startupJoinLockManager::markFailed);
+        } catch (RuntimeException e) {
+            startupJoinLockManager.markFailed();
+            this.getLogger().log(Level.SEVERE, "MySqlPlayerBridge initialization failed. Player connections remain locked.", e);
+        }
     }
 
     public static Plugin getInstance(){return instance;}
 
     @Override
     public void onDisable() {
+        if(startupJoinLockManager != null){
+            startupJoinLockManager.lockForShutdown();
+        }
         this.getLogger().log(Level.WARNING, "Stopping "+PLUGIN_NAME+" plugin v"+version);
-        if(mySqlConnectionHandler != null){
+        if(mySqlConnectionHandler != null && playerBridgeManager != null){
             mySqlConnectionHandler.getMySqlDataManager().saveAllOnlinePlayers();
         }
 
