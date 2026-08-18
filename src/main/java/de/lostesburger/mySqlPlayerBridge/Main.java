@@ -236,7 +236,7 @@ public final class Main extends JavaPlugin {
         /**
          * Managers
          */
-        mySqlMigrationHandler.runAfterCheck(() -> {
+        mySqlMigrationHandler.runWhenMigrationComplete(() -> {
             playerManager = new PlayerManager();
             playerBridgeManager = new PlayerBridgeManager();
             commandManager = new CommandManager();
