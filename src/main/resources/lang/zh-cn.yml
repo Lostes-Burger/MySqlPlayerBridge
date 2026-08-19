@@ -48,24 +48,44 @@ manual-sync-wrong-usage: "§c用法错误！使用sync <玩家名/*>"
 # 手动同步目标不存在提示：管理员尝试同步不存在的玩家数据时显示
 manual-sync-player-not-found: "§c未找到玩家。§7此玩家未知。同步失败！"
 
-# Edit subcommand
-edit-wrong-usage: "§cWrong usage! Use edit <player_name/*> <data_type> <values>"
-edit-player-not-found: "§cPlayer not found in database."
-edit-player-online-other-server: "§cPlayer is currently online on another server."
-edit-target-required-player: "§cThis data type can only be edited for a specific player."
-edit-console-no-gui: "§cOnly players can edit inventory data."
-edit-vault-disabled: "§cVault economy module is not enabled."
-edit-invalid-value: "§cInvalid value: {reason}"
-edit-db-error: "§cDatabase error. See console."
-edit-pre-sync-timeout: "§cPre-edit sync for {player} timed out after 5 seconds. Edit was cancelled."
-edit-pre-sync-failed: "§cPre-edit sync for {player} failed. Edit was cancelled."
-edit-success: "§7Player data was §asuccessfully§7 updated."
-edit-success-all: "§7Data for all players was §asuccessfully§7 updated."
-edit-gui-title: "§9Edit {type} for {player}"
-edit-usage: "§cUsage: /{command} edit {usage}"
 
-# Update
-update-available: "A new version of the MySqlPlayerBridge plugin is available! Installed version: {installed}, latest version: {latest}."
-update-available-prerelease: "A new PRE-RELEASE version of the MySqlPlayerBridge plugin is available! Installed version: {installed}, latest version: {latest}."
-download-update: "§9Click §c[§5here§c] §9to visit the download page."
+# 编辑命令相关配置
+# 编辑命令用法错误提示：玩家或管理员使用/edit命令格式不正确时显示
+edit-wrong-usage: "§c用法错误！使用 edit <玩家名/*> <数据类型> <数值>"
+# 编辑目标不存在提示：尝试编辑数据库中不存在的玩家数据时显示
+edit-player-not-found: "§c未在数据库中找到该玩家。"
+# 编辑目标跨服在线提示：尝试编辑当前正在其他服务器在线的玩家数据时显示
+edit-player-online-other-server: "§c该玩家当前正在另一台服务器上在线。"
+# 编辑目标需指定玩家提示：尝试对所有玩家执行仅支持特定玩家的数据类型编辑时显示
+edit-target-required-player: "§c此数据类型只能针对指定玩家进行编辑。"
+# 控制台无法打开GUI提示：非玩家身份（如控制台）尝试编辑背包数据时显示
+edit-console-no-gui: "§c只有玩家才能编辑背包数据。"
+# Vault经济模块未启用提示：尝试编辑经济相关数据但Vault模块未开启时显示
+edit-vault-disabled: "§cVault 经济模块未启用。"
+# 编辑数值无效提示：输入的数值格式或内容不符合要求时显示
+edit-invalid-value: "§c无效数值: {reason}"
+# 编辑数据库错误提示：数据库操作异常时显示
+edit-db-error: "§c数据库错误。请查看控制台。"
+# 编辑前同步超时提示：编辑前数据同步超过5秒未完成时显示
+edit-pre-sync-timeout: "§c玩家 {player} 的编辑前同步在5秒后超时。编辑已取消。"
+# 编辑前同步失败提示：编辑前数据同步失败时显示
+edit-pre-sync-failed: "§c玩家 {player} 的编辑前同步失败。编辑已取消。"
+# 编辑成功提示：指定玩家数据编辑完成后显示
+edit-success: "§7玩家数据已§a成功§7更新。"
+# 批量编辑成功提示：所有玩家数据编辑完成后显示
+edit-success-all: "§7所有玩家的数据已§a成功§7更新。"
+# 编辑GUI标题：打开数据编辑界面时显示的标题
+edit-gui-title: "§9为 {player} 编辑 {type}"
+# 编辑命令完整用法提示
+edit-usage: "§c用法: /{command} edit {usage}"
+
+
+# 更新检查相关配置
+# 新版本可用提示：检测到插件正式版更新时显示
+update-available: "MySqlPlayerBridge 插件有新版本可用！当前版本: {installed}，最新版本: {latest}。"
+# 预发布版本可用提示：检测到插件预发布版更新时显示
+update-available-prerelease: "MySqlPlayerBridge 插件有新的预发布版本可用！当前版本: {installed}，最新版本: {latest}。"
+# 下载更新提示：点击可跳转至下载页面
+download-update: "§9点击 §c[§5此处§c] §9访问下载页面。"
+# 更新检查失败提示：连接GitHub检查更新失败或返回异常数据时显示
 update-check-failed: "GitHub 更新检查失败或返回了无效数据: {reason}"
