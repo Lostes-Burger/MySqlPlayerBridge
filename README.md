@@ -72,6 +72,7 @@ main-table-name: "player_data"
 ## Admin Edit Feature
 
 The edit system is designed for real-world operations:
+
 - Edit any supported module values directly in the database.
 - Inventory, armor, ender chest, and offhand are edited via GUI.
 - Numeric fields validate input before saving.
@@ -97,9 +98,10 @@ Example:
 ## Languages
 
 Built-in translations:
-- English: `src/main/resources/lang/en-us.yml`
-- German: `src/main/resources/lang/de-de.yml`
-- Chinese: `src/main/resources/lang/zh-cn.yml`
+
+- English: <a href="https://raw.githubusercontent.com/Lostes-Burger/MySqlPlayerBridge/refs/heads/main/src/main/resources/lang/en-us.yml" target="_blank">src/main/resources/lang/en-us.yml</a>
+- German: <a href="https://raw.githubusercontent.com/Lostes-Burger/MySqlPlayerBridge/refs/heads/main/src/main/resources/lang/de-de.yml" target="_blank">src/main/resources/lang/de-de.yml</a>
+- Chinese: <a href="https://raw.githubusercontent.com/Lostes-Burger/MySqlPlayerBridge/refs/heads/main/src/main/resources/lang/zh-cn.yml" target="_blank">src/main/resources/lang/zh-cn.yml</a>
 
 You can submit new translations any time via PR. Keep the key structure and formatting consistent with existing files.
 
