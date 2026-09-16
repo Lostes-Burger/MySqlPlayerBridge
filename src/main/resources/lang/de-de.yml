@@ -22,6 +22,7 @@ clear-player-not-found: "§cSpieler nicht Gefunden! §7Der angegebene Spieler ka
 
 # Sync subcommand
 manual-sync-success: "§7Die Spielerdaten aller aktiven Spieler wurde§a erfolgreich§7 synchronisiert."
+manual-sync-failed: "§cDie manuelle Synchronisation ist fehlgeschlagen. Details stehen im Server-Log."
 manual-sync-wrong-usage: "§cFalsche Benutzung! Benutze: sync <player_name/*>"
 manual-sync-player-not-found: "§cSpieler nicht Gefunden! §7Der angegebene Spieler kann nicht gefunden werden. Synchronisation fehlgeschlagen!"
 

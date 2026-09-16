@@ -6,7 +6,9 @@ Modern player data sync for Minecraft servers with MySQL. Built for current Pape
 
 ## Highlights
 
-- **Folia and Bukkit/Paper compatible** with async-first design.
+- **Paper and Folia compatible** with one shared synchronization pipeline.
+- **Session-safe server switching** with runtime UUIDs, per-login tokens and database-clock leases.
+- **Bounded pooled database access** through HikariCP; JDBC never runs on a Minecraft tick thread.
 - **Module-based sync** to enable only what you need.
 - **Admin edit tools** to inspect and change player data directly in the database, including GUI editors for inventories.
 - **Fail-safe logging** and local error snapshots for troubleshooting and recovery.
@@ -25,7 +27,7 @@ Modern player data sync for Minecraft servers with MySQL. Built for current Pape
   - Experience
   - Health
   - Saturation
-  - Economy (Vault)
+  - Economy through Vault
   - Potion Effects
   - Advancements
   - Statistics
@@ -46,6 +48,15 @@ Modern player data sync for Minecraft servers with MySQL. Built for current Pape
 4. Configure MySQL in `plugins/MySqlPlayerBridge/mysql.yml`.
 5. Enable the modules you want in `plugins/MySqlPlayerBridge/config.yml`.
 6. Restart the server.
+
+### MySQL persistence
+
+MySqlPlayerBridge uses its own HikariCP connection pool with the MariaDB JDBC
+driver (compatible with MySQL and MariaDB). Enabled player modules are stored
+as one snapshot in a transaction on a bounded database executor, so JDBC work
+does not run on Paper or Folia tick threads. Runtime UUIDs, login session tokens
+and short database leases coordinate ownership safely, including copied server
+templates with identical names.
 
 ### MySQL Setup (native server)
 
@@ -89,10 +100,11 @@ Example:
 
 ## Requirements
 
+- Paper or Folia
 - MySQL or MariaDB
 - Java 21
 - NBTAPI (required for inventory serialization)
-- Vault (optional, for economy sync)
+- Vault plus an economy provider (only when economy sync is enabled)
 
 ## Languages
 
@@ -106,7 +118,7 @@ You can submit new translations any time via PR. Keep the key structure and form
 ## Notes
 
 - Cross-version syncing between different Minecraft versions is not guaranteed.
-- Folia and Bukkit/Paper support remains a core focus.
+- Paper and Folia support are equal core targets.
 
 ## License
 
