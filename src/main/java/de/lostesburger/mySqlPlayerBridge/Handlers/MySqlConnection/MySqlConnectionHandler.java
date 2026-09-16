@@ -3,13 +3,11 @@ package de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection;
 import de.lostesburger.mySqlPlayerBridge.Database.DatabaseConfig;
 import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
 import de.lostesburger.mySqlPlayerBridge.Database.DatabaseExecutor;
-import de.lostesburger.mySqlPlayerBridge.Database.DatabaseSchemaMigrator;
 import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 
-import java.util.List;
 
 public class MySqlConnectionHandler implements AutoCloseable {
     private final PooledSqlManager sqlManager;
@@ -77,32 +75,6 @@ public class MySqlConnectionHandler implements AutoCloseable {
                 "`health` DOUBLE, `max_health` DOUBLE, `health_scaled` BOOLEAN, `health_scale` DOUBLE");
         createUuidTable(manager, Main.TABLE_NAME_MONEY, "`money` DOUBLE");
 
-        DatabaseSchemaMigrator schemaMigrator = new DatabaseSchemaMigrator(
-                manager,
-                Main.TABLE_NAME_SCHEMA_MIGRATIONS,
-                message -> Main.getInstance().getLogger().warning("[Schema migration] " + message)
-        );
-        schemaMigrator.migrate(List.of(
-                uuidKey(Main.TABLE_NAME_PLAYER_INDEX),
-                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_MIGRATION, "migration", "VARCHAR(64)"),
-                uuidKey(Main.TABLE_NAME_EFFECTS),
-                uuidKey(Main.TABLE_NAME_ADVANCEMENTS),
-                uuidKey(Main.TABLE_NAME_STATS),
-                uuidKey(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT),
-                uuidKey(Main.TABLE_NAME_SATURATION),
-                uuidKey(Main.TABLE_NAME_LOCATION),
-                uuidKey(Main.TABLE_NAME_EXP),
-                uuidKey(Main.TABLE_NAME_GAMEMODE),
-                uuidKey(Main.TABLE_NAME_INVENTORY),
-                uuidKey(Main.TABLE_NAME_ARMOR),
-                uuidKey(Main.TABLE_NAME_ENDERCHEST),
-                uuidKey(Main.TABLE_NAME_HEALTH),
-                uuidKey(Main.TABLE_NAME_MONEY)
-        ));
-    }
-
-    private DatabaseSchemaMigrator.UniqueKeyTable uuidKey(String table) {
-        return new DatabaseSchemaMigrator.UniqueKeyTable(table, "uuid", "VARCHAR(36)");
     }
 
     private void createUuidTable(PooledSqlManager manager, String table, String moduleColumns) throws DatabaseException {

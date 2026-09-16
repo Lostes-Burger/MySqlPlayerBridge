@@ -1,11 +1,13 @@
 package de.lostesburger.mySqlPlayerBridge.Handlers.Migration;
 
 import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseSchemaMigrator;
 import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.lostesburger.mySqlPlayerBridge.Main;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -23,6 +25,7 @@ public class MySqlMigrationHandler {
     public MySqlMigrationHandler(){
         mySqlManager = Main.mySqlConnectionHandler.getManager();
         try {
+            migrateSchema();
             runningMigration = mySqlManager.tableExists(Main.TABLE_NAME);
         } catch (DatabaseException e) {
             throw new RuntimeException(e);
@@ -50,6 +53,32 @@ public class MySqlMigrationHandler {
                 this.migrationCompletion.completeExceptionally(e);
             }
         });
+    }
+
+    private void migrateSchema() throws DatabaseException {
+        Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] Checking and normalizing the target schema...");
+        DatabaseSchemaMigrator schemaMigrator = new DatabaseSchemaMigrator(
+                mySqlManager,
+                Main.TABLE_NAME_SCHEMA_MIGRATIONS,
+                message -> Main.getInstance().getLogger().warning("[Schema migration] " + message)
+        );
+        schemaMigrator.migrate(List.of(
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_PLAYER_INDEX, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_MIGRATION, "migration", "VARCHAR(64)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_EFFECTS, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_ADVANCEMENTS, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_STATS, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_SATURATION, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_LOCATION, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_EXP, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_GAMEMODE, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_INVENTORY, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_ARMOR, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_ENDERCHEST, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_HEALTH, "uuid", "VARCHAR(36)"),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_MONEY, "uuid", "VARCHAR(36)")
+        ));
     }
 
     private void waitForOtherMigration(int attempts) {
@@ -217,6 +246,7 @@ public class MySqlMigrationHandler {
                 Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Backup completed] The Main table got renamed to "+new_name+".");
 
                 this.migrateLegacyPlayerIndexTable();
+                this.markMigrationStep(2, "Legacy combined player table imported");
                 mySqlManager.setOrUpdateEntry(
                         Main.TABLE_NAME_MIGRATION,
                         Map.of("migration", "migration"),
@@ -279,6 +309,19 @@ public class MySqlMigrationHandler {
         }
 
         Main.getInstance().getLogger().log(Level.INFO, "[Database Migration] [Legacy Player Registry] Migration to new player index completed.");
+        this.markMigrationStep(3, "Legacy player registry imported");
+    }
+
+    private void markMigrationStep(int version, String description) {
+        try {
+            mySqlManager.setOrUpdateEntry(
+                    Main.TABLE_NAME_SCHEMA_MIGRATIONS,
+                    Map.of("version", version),
+                    Map.of("description", description, "applied_at", Timestamp.from(Instant.now()))
+            );
+        } catch (DatabaseException exception) {
+            throw new RuntimeException("Could not record migration step " + version, exception);
+        }
     }
 
     private static Number asNumber(Object value, String column) {
