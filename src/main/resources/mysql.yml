@@ -8,3 +8,29 @@ password: ""
 
 # If you change this with a full table of player data a new Table will be created and all data ignored (not deleted)!
 main-table-name: "player_data"
+
+# MySqlPlayerBridge owns this small connection pool. Keep the pool deliberately
+# small; each backend server creates its own pool.
+pool:
+  maximum-size: 4
+  connection-timeout-ms: 3000
+  validation-timeout-ms: 1000
+  keepalive-time-ms: 120000
+  max-lifetime-ms: 1500000
+
+timeouts:
+  connect-ms: 3000
+  socket-ms: 5000
+  query-seconds: 5
+
+# A failed snapshot transaction is retried only for transient JDBC failures.
+# The lease remains owned while these attempts are running.
+save-retry:
+  maximum-attempts: 3
+  delay-ms: 250
+
+# Cross-server player lease. All times use the database server clock.
+lease:
+  heartbeat-seconds: 5
+  duration-seconds: 15
+  join-wait-timeout-seconds: 20

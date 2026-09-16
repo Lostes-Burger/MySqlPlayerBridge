@@ -49,27 +49,45 @@ public class AdvancementSerializer {
             boolean done = advancementObj.get("done").getAsBoolean();
             String awardedCriteriaString = advancementObj.get("awardedCriteria").getAsString();
 
-            if (advancementKeyString.startsWith("minecraft:")) {
-                advancementKeyString = advancementKeyString.substring("minecraft:".length());
+            NamespacedKey advancementKey = parseKey(advancementKeyString);
+            if (advancementKey == null) {
+                if (DEBUG) System.out.println("[AdvancementSerializer] Ignoring invalid advancement key: " + advancementKeyString);
+                continue;
             }
-
-
-            NamespacedKey advancementKey = new NamespacedKey("minecraft", advancementKeyString);
-            if(DEBUG) System.out.println("[AdvancementSerializer] Advancement namespaced key (deserialize): "+advancementKey.toString());
-            if (advancementKey == null) return null;
+            if(DEBUG) System.out.println("[AdvancementSerializer] Advancement namespaced key (deserialize): "+advancementKey);
 
             Advancement advancement = Bukkit.getAdvancement(advancementKey);
-            if (advancement == null) return null;
+            if (advancement == null) {
+                if (DEBUG) System.out.println("[AdvancementSerializer] Ignoring unknown advancement: " + advancementKey);
+                continue;
+            }
 
             AdvancementProgress progress = player.getAdvancementProgress(advancement);
             Set<String> awardedCriteria = new HashSet<>(Arrays.asList(awardedCriteriaString.split(",")));
 
             if (applyAdvancements) {
                 for (String criterion : awardedCriteria) {
-                    progress.awardCriteria(criterion);
+                    if (!criterion.isBlank()) {
+                        progress.awardCriteria(criterion);
+                    }
                 }
             }
         }
         return advancementsArray;
+    }
+
+    /**
+     * Parses both fully-qualified keys (for example, {@code namespace:path})
+     * and legacy unqualified Minecraft keys.
+     */
+    static NamespacedKey parseKey(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return NamespacedKey.fromString(value);
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 }

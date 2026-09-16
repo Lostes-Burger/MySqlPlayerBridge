@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Location;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -19,7 +19,7 @@ import java.util.logging.Level;
 
 public class LocationDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public LocationDataManager(){
         this.enabled = Main.modulesManager.syncLocation;
@@ -31,7 +31,7 @@ public class LocationDataManager {
                         new RuntimeException("Location mysql table is missing!"), Map.of("table", Main.TABLE_NAME_LOCATION), false);
                 throw new RuntimeException("Location mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Location", "table-exists", Main.TABLE_NAME_LOCATION, null,
                     e, Map.of("table", Main.TABLE_NAME_LOCATION), false);
             throw new RuntimeException(e);
@@ -107,7 +107,7 @@ public class LocationDataManager {
                     Map.of("uuid", uuid),
                     map
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Location", "save", Main.TABLE_NAME_LOCATION, null,
                     e, Map.of("uuid", uuid), false);
@@ -132,7 +132,7 @@ public class LocationDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_LOCATION,
                         Map.of("uuid", playerUuid.toString())
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Location", "load", Main.TABLE_NAME_LOCATION, player,
                         e, Map.of("uuid", playerUuid.toString()), true);
                 completionFuture.completeExceptionally(e);

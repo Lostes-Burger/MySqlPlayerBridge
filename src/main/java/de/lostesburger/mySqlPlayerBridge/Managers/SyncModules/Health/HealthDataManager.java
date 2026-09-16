@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Health;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class HealthDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public HealthDataManager() {
         this.enabled = Main.modulesManager.syncHealth;
@@ -28,7 +28,7 @@ public class HealthDataManager {
                         new RuntimeException("Health mysql table is missing!"), Map.of("table", Main.TABLE_NAME_HEALTH), false);
                 throw new RuntimeException("Health mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Health", "table-exists", Main.TABLE_NAME_HEALTH, null,
                     e, Map.of("table", Main.TABLE_NAME_HEALTH), false);
             throw new RuntimeException(e);
@@ -95,7 +95,7 @@ public class HealthDataManager {
                             "health_scale", health_scale
                     )
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Health", "save", Main.TABLE_NAME_HEALTH, null,
                     e, Map.of("uuid", uuid), false);
@@ -123,7 +123,7 @@ public class HealthDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_HEALTH,
                         Map.of("uuid", playerUuid.toString())
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Health", "load", Main.TABLE_NAME_HEALTH, player,
                         e, Map.of("uuid", playerUuid.toString()), true);
                 future.completeExceptionally(e);

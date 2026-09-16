@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Effect;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class EffectDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public EffectDataManager(){
         this.enabled = Main.modulesManager.syncEffects;
@@ -29,7 +29,7 @@ public class EffectDataManager {
                         new RuntimeException("Potion Effect mysql table is missing!"), Map.of("table", Main.TABLE_NAME_EFFECTS), false);
                 throw new RuntimeException("Potion Effect mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Effect", "table-exists", Main.TABLE_NAME_EFFECTS, null,
                     e, Map.of("table", Main.TABLE_NAME_EFFECTS), false);
             throw new RuntimeException(e);
@@ -83,7 +83,7 @@ public class EffectDataManager {
                     Map.of("uuid", uuid),
                     Map.of("effects", serializedEffects)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Effect", "save", Main.TABLE_NAME_EFFECTS, null,
                     e, Map.of("uuid", uuid), false);
         }
@@ -103,7 +103,7 @@ public class EffectDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_EFFECTS,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Effect", "load", Main.TABLE_NAME_EFFECTS, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

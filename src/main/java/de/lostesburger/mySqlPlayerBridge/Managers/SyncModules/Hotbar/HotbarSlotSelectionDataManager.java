@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Hotbar;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -12,7 +12,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class HotbarSlotSelectionDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public HotbarSlotSelectionDataManager(){
         this.enabled = Main.modulesManager.syncSelectedHotbarSlot;
@@ -24,7 +24,7 @@ public class HotbarSlotSelectionDataManager {
                         new RuntimeException("Selected hotbar slot mysql table is missing!"), Map.of("table", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT), false);
                 throw new RuntimeException("Selected hotbar slot mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("HotbarSlot", "table-exists", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, null,
                     e, Map.of("table", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT), false);
             throw new RuntimeException(e);
@@ -77,7 +77,7 @@ public class HotbarSlotSelectionDataManager {
                     Map.of("uuid", uuid),
                     Map.of("slot", slot)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("HotbarSlot", "save", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, null,
                     e, Map.of("uuid", uuid), false);
         }
@@ -97,7 +97,7 @@ public class HotbarSlotSelectionDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("HotbarSlot", "load", Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

@@ -1,13 +1,11 @@
 package de.lostesburger.mySqlPlayerBridge.Commands.SubCommands.Edit;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.paper.command.commandmanager.ServerCommand;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.Edit.EditGuiManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
-import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
+import de.lostesburger.mySqlPlayerBridge.Sync.SnapshotException;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
@@ -78,6 +76,14 @@ public class EditSubCommand implements ServerCommand {
         Player onlineTarget = null;
         if(!wildcard){
             onlineTarget = findOnlinePlayer(targetArg);
+            if(onlineTarget != null && (Main.playerSyncService == null
+                    || !Main.playerSyncService.hasActiveLease(onlineTarget.getUniqueId())
+                    || Main.mySqlConnectionHandler.getMySqlDataManager()
+                    .isJoinSyncLocked(onlineTarget.getUniqueId()))){
+                commandSender.sendMessage(Chat.getMessage("edit-pre-sync-failed")
+                        .replace("{player}", onlineTarget.getName()));
+                return;
+            }
         }
 
         if(PLAYER_ONLY_TYPES.contains(typeArg)){
@@ -136,26 +142,16 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void handleInventoryEdit(Player admin, String targetArg, Player onlineTarget, String typeArg){
+        if(onlineTarget != null && onlineTarget.isOnline()){
+            openLiveInventoryEditor(admin, onlineTarget, typeArg);
+            return;
+        }
+
         runAsyncTask(() -> {
-            TargetInfo targetInfo = resolveTarget(commandNameOrIndex(targetArg, onlineTarget), onlineTarget, admin);
+            TargetInfo targetInfo = resolveTarget(targetArg, null, admin);
             if(targetInfo == null) return;
 
-            if(targetInfo.onlineLocal && onlineTarget != null && onlineTarget.isOnline()){
-                MySqlDataManager.SyncExecutionResult preSyncResult = Main.mySqlConnectionHandler
-                        .getMySqlDataManager()
-                        .runPreEditSync(onlineTarget, MySqlDataManager.SYNC_WAIT_TIMEOUT_MS);
-
-                if(preSyncResult == MySqlDataManager.SyncExecutionResult.TIMEOUT){
-                    sendMessage(admin, Chat.getMessage("edit-pre-sync-timeout").replace("{player}", targetInfo.name));
-                    return;
-                }
-                if(preSyncResult == MySqlDataManager.SyncExecutionResult.FAILED){
-                    sendMessage(admin, Chat.getMessage("edit-pre-sync-failed").replace("{player}", targetInfo.name));
-                    return;
-                }
-            }
-
-            MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+            PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
             String table = getTableForInventoryType(typeArg);
             String column = getColumnForInventoryType(typeArg);
 
@@ -168,18 +164,38 @@ public class EditSubCommand implements ServerCommand {
                         serialized = String.valueOf(value);
                     }
                 }
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 sendMessage(admin, Chat.getMessage("edit-db-error"));
                 throw new RuntimeException(e);
             }
 
             String finalSerialized = serialized;
-            if(Main.IS_FOLIA){
-                BridgeScheduler.runEntity(admin, () -> editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid), targetInfo.name, typeArg, finalSerialized));
-            }else {
-                Scheduler.run(() -> {
-                    editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid), targetInfo.name, typeArg, finalSerialized);
-                }, Main.getInstance());
+            Main.platformScheduler.runForPlayer(admin, () ->
+                    editGuiManager.openInventoryEditor(admin, UUID.fromString(targetInfo.uuid),
+                            targetInfo.name, typeArg, finalSerialized));
+        });
+    }
+
+    private void openLiveInventoryEditor(Player admin, Player target, String type){
+        Main.platformScheduler.runForPlayer(target, () -> {
+            if(Main.nbtSerializer == null){
+                sendMessage(admin, Chat.getMessage("edit-invalid-value").replace("{reason}", "NBT serializer missing"));
+                return;
+            }
+
+            try {
+                String serialized = switch (type) {
+                    case "inventory" -> Main.nbtSerializer.serialize(target.getInventory().getContents());
+                    case "armor" -> Main.nbtSerializer.serialize(target.getInventory().getArmorContents());
+                    case "enderchest" -> Main.nbtSerializer.serialize(target.getEnderChest().getContents());
+                    default -> throw new IllegalArgumentException("Unsupported inventory editor type: " + type);
+                };
+                Main.platformScheduler.runForPlayer(admin, () -> editGuiManager.openInventoryEditor(
+                        admin, target.getUniqueId(), target.getName(), type, serialized));
+            } catch (Exception exception) {
+                Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                        "Could not capture live inventory for editing: " + target.getUniqueId(), exception);
+                sendMessage(admin, Chat.getMessage("edit-invalid-value").replace("{reason}", "serialize"));
             }
         });
     }
@@ -198,7 +214,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", "exp range 0-1"));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_EXP, Map.of("exp", exp), sender);
                 return;
@@ -220,7 +236,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_EXP, Map.of("exp_level", level), sender);
                 return;
@@ -242,7 +258,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateHealthForAll(health, sender);
                 return;
@@ -270,7 +286,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateHealthMaxForAll(maxHealth, sender);
                 return;
@@ -298,7 +314,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_HEALTH, Map.of("health_scaled", scaled), sender);
                 return;
@@ -320,7 +336,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_HEALTH, Map.of("health_scale", scale), sender);
                 return;
@@ -342,7 +358,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_SATURATION, Map.of("saturation", saturation), sender);
                 return;
@@ -364,7 +380,7 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_SATURATION, Map.of("food_level", food), sender);
                 return;
@@ -389,7 +405,7 @@ public class EditSubCommand implements ServerCommand {
             return;
         }
         String gamemodeString = gameMode.name();
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_GAMEMODE, Map.of("gamemode", gamemodeString), sender);
                 return;
@@ -430,7 +446,7 @@ public class EditSubCommand implements ServerCommand {
         String finalWorldName = worldName;
         Float finalYaw = yaw;
         Float finalPitch = pitch;
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateLocationForAll(finalWorldName, x, y, z, finalYaw, finalPitch, sender);
                 return;
@@ -470,24 +486,27 @@ public class EditSubCommand implements ServerCommand {
             sender.sendMessage(Chat.getMessage("edit-invalid-value").replace("{reason}", strings[2]));
             return;
         }
-        runAsyncTask(() -> {
+        runAsyncEdit(wildcard, sender, () -> {
             if(wildcard){
                 updateAllEntries(Main.TABLE_NAME_MONEY, Map.of("money", money), sender);
                 return;
             }
             TargetInfo targetInfo = resolveTarget(commandNameOrIndex(targetArg, onlineTarget), onlineTarget, sender);
             if(targetInfo == null) return;
+            if(onlineTarget != null){
+                applyMoney(onlineTarget, money, sender);
+                return;
+            }
             updateSingleEntry(Main.TABLE_NAME_MONEY, targetInfo.uuid, Map.of("money", money), sender);
-            applyMoney(onlineTarget, money);
         });
     }
 
     private void updateAllEntries(String table, Map<String, Object> update, CommandSender sender){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         List<Map<String, Object>> entries;
         try {
             entries = manager.getAllEntries(table);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
@@ -496,7 +515,7 @@ public class EditSubCommand implements ServerCommand {
             if(uuid == null) continue;
             try {
                 manager.setOrUpdateEntry(table, Map.of("uuid", String.valueOf(uuid)), update);
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 sendMessage(sender, Chat.getMessage("edit-db-error"));
                 throw new RuntimeException(e);
             }
@@ -505,10 +524,10 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void updateSingleEntry(String table, String uuid, Map<String, Object> update, CommandSender sender){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         try {
             manager.setOrUpdateEntry(table, Map.of("uuid", uuid), update);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
@@ -516,21 +535,21 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void updateHealthForAll(double health, CommandSender sender){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         List<Map<String, Object>> entries;
         try {
             entries = manager.getAllEntries(Main.TABLE_NAME_HEALTH);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
         for (Map<String, Object> entry : entries){
             String uuid = String.valueOf(entry.get("uuid"));
-            Double maxHealth = entry.get("max_health") instanceof Double ? (Double) entry.get("max_health") : null;
+            Double maxHealth = entry.get("max_health") instanceof Number number ? number.doubleValue() : null;
             double newHealth = maxHealth == null ? health : Math.min(health, maxHealth);
             try {
                 manager.setOrUpdateEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid), Map.of("health", newHealth));
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 sendMessage(sender, Chat.getMessage("edit-db-error"));
                 throw new RuntimeException(e);
             }
@@ -539,17 +558,17 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void updateHealthMaxForAll(double maxHealth, CommandSender sender){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         List<Map<String, Object>> entries;
         try {
             entries = manager.getAllEntries(Main.TABLE_NAME_HEALTH);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
         for (Map<String, Object> entry : entries){
             String uuid = String.valueOf(entry.get("uuid"));
-            Double currentHealth = entry.get("health") instanceof Double ? (Double) entry.get("health") : null;
+            Double currentHealth = entry.get("health") instanceof Number number ? number.doubleValue() : null;
             Map<String, Object> update = new HashMap<>();
             update.put("max_health", maxHealth);
             if(currentHealth != null && currentHealth > maxHealth){
@@ -557,7 +576,7 @@ public class EditSubCommand implements ServerCommand {
             }
             try {
                 manager.setOrUpdateEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid), update);
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 sendMessage(sender, Chat.getMessage("edit-db-error"));
                 throw new RuntimeException(e);
             }
@@ -566,11 +585,11 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void updateLocationForAll(String world, double x, double y, double z, Float yaw, Float pitch, CommandSender sender){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         List<Map<String, Object>> entries;
         try {
             entries = manager.getAllEntries(Main.TABLE_NAME_LOCATION);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
@@ -588,7 +607,7 @@ public class EditSubCommand implements ServerCommand {
             if(uuid == null) continue;
             try {
                 manager.setOrUpdateEntry(Main.TABLE_NAME_LOCATION, Map.of("uuid", String.valueOf(uuid)), update);
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 sendMessage(sender, Chat.getMessage("edit-db-error"));
                 throw new RuntimeException(e);
             }
@@ -598,7 +617,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void applyExp(Player onlineTarget, Float exp, Integer level){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        runForPlayer(onlineTarget, () -> {
+        runForPlayerAndSave(onlineTarget, () -> {
             if(exp != null){
                 onlineTarget.setExp(exp);
             }
@@ -610,7 +629,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void applyHealth(Player onlineTarget, Double health, Double maxHealth, Boolean scaled, Double scale){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        runForPlayer(onlineTarget, () -> {
+        runForPlayerAndSave(onlineTarget, () -> {
             if(maxHealth != null && onlineTarget.getAttribute(Attribute.MAX_HEALTH) != null){
                 onlineTarget.getAttribute(Attribute.MAX_HEALTH).setBaseValue(maxHealth);
             }
@@ -632,7 +651,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void applySaturation(Player onlineTarget, Float saturation, Integer foodLevel){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        runForPlayer(onlineTarget, () -> {
+        runForPlayerAndSave(onlineTarget, () -> {
             if(saturation != null){
                 onlineTarget.setSaturation(saturation);
             }
@@ -644,7 +663,7 @@ public class EditSubCommand implements ServerCommand {
 
     private void applyGamemode(Player onlineTarget, GameMode gamemode){
         if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        runForPlayer(onlineTarget, () -> onlineTarget.setGameMode(gamemode));
+        runForPlayerAndSave(onlineTarget, () -> onlineTarget.setGameMode(gamemode));
     }
 
     private void applyLocation(Player onlineTarget, String worldName, double x, double y, double z, Float yaw, Float pitch){
@@ -655,34 +674,100 @@ public class EditSubCommand implements ServerCommand {
             float useYaw = yaw != null ? yaw : onlineTarget.getLocation().getYaw();
             float usePitch = pitch != null ? pitch : onlineTarget.getLocation().getPitch();
             Location location = new Location(world, x, y, z, useYaw, usePitch);
-            if(Main.IS_FOLIA){
-                onlineTarget.teleportAsync(location);
-            }else {
-                onlineTarget.teleport(location);
-            }
+            onlineTarget.teleportAsync(location).whenComplete((teleported, throwable) -> {
+                if(throwable != null || !Boolean.TRUE.equals(teleported)){
+                    Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                            "Could not apply edited location for " + onlineTarget.getUniqueId(), throwable);
+                    return;
+                }
+                saveLivePlayer(onlineTarget);
+            });
         });
     }
 
-    private void applyMoney(Player onlineTarget, double money){
-        if(onlineTarget == null || !onlineTarget.isOnline()) return;
-        if(Main.vaultManager == null) return;
-        runForPlayer(onlineTarget, () -> Main.vaultManager.setBalance(onlineTarget, money));
+    private void applyMoney(Player onlineTarget, double money, CommandSender sender){
+        if(!onlineTarget.isOnline() || Main.vaultManager == null){
+            sendMessage(sender, Chat.getMessage("edit-db-error"));
+            return;
+        }
+        boolean scheduled = Main.platformScheduler.runForPlayer(onlineTarget, () -> {
+            try {
+                Main.vaultManager.setBalance(onlineTarget, money);
+                Main.playerSyncService.saveOnline(Main.playerSyncService.capture(onlineTarget))
+                        .whenComplete((ignored, throwable) -> {
+                            if(throwable != null){
+                                Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                                        "Could not persist edited economy balance for "
+                                                + onlineTarget.getUniqueId(), throwable);
+                            }
+                            sendMessage(sender, Chat.getMessage(throwable == null
+                                    ? "edit-success"
+                                    : "edit-db-error"));
+                        });
+            } catch (Exception exception) {
+                Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                        "Could not apply edited economy balance for " + onlineTarget.getUniqueId(), exception);
+                sendMessage(sender, Chat.getMessage("edit-db-error"));
+            }
+        }, () -> sendMessage(sender, Chat.getMessage("edit-db-error")));
+        if(!scheduled){
+            sendMessage(sender, Chat.getMessage("edit-db-error"));
+        }
     }
 
     private void runForPlayer(Player player, Runnable task){
-        if(Main.IS_FOLIA){
-            BridgeScheduler.runEntity(player, task);
+        Main.platformScheduler.runForPlayer(player, task);
+    }
+
+    private void runForPlayerAndSave(Player player, Runnable task){
+        Main.platformScheduler.runForPlayer(player, () -> {
+            task.run();
+            saveLivePlayer(player);
+        });
+    }
+
+    private void saveLivePlayer(Player player){
+        if(Main.playerSyncService == null || !Main.playerSyncService.hasActiveLease(player.getUniqueId())){
+            Main.getInstance().getLogger().warning("Edited player has no active local lease: " + player.getUniqueId());
             return;
         }
-        Scheduler.run(task, Main.getInstance());
+        try {
+            Main.playerSyncService.saveOnline(Main.playerSyncService.capture(player))
+                    .exceptionally(throwable -> {
+                        Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                                "Could not persist admin edit for " + player.getUniqueId(), throwable);
+                        return null;
+                    });
+        } catch (SnapshotException exception) {
+            Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                    "Could not capture admin edit for " + player.getUniqueId(), exception);
+        }
     }
 
     private void runAsyncTask(Runnable task){
-        if(Main.IS_FOLIA){
-            BridgeScheduler.runAsync(task);
-            return;
-        }
-        Scheduler.runAsync(task, Main.getInstance());
+        Main.mySqlConnectionHandler.getDatabaseExecutor().run(task::run)
+                .exceptionally(throwable -> {
+                    Main.getInstance().getLogger().log(java.util.logging.Level.WARNING,
+                            "Admin database operation failed", throwable);
+                    return null;
+                });
+    }
+
+    private void runAsyncEdit(boolean wildcard, CommandSender sender, Runnable task){
+        runAsyncTask(() -> {
+            if(wildcard){
+                try {
+                    if(Main.playerLeaseCoordinator.hasAnyDatabaseLease()){
+                        sendMessage(sender, Chat.getMessage("edit-player-online-other-server"));
+                        return;
+                    }
+                } catch (DatabaseException exception) {
+                    sendMessage(sender, Chat.getMessage("edit-db-error"));
+                    throw new RuntimeException(exception);
+                }
+            }
+            task.run();
+        });
     }
 
     private Double getHealthMax(String uuid){
@@ -691,7 +776,7 @@ public class EditSubCommand implements ServerCommand {
             return null;
         }
         Object value = entry.get("max_health");
-        return value instanceof Double ? (Double) value : null;
+        return value instanceof Number number ? number.doubleValue() : null;
     }
 
     private Double getHealthValue(String uuid){
@@ -700,14 +785,14 @@ public class EditSubCommand implements ServerCommand {
             return null;
         }
         Object value = entry.get("health");
-        return value instanceof Double ? (Double) value : null;
+        return value instanceof Number number ? number.doubleValue() : null;
     }
 
     private Map<String, Object> getEntry(String table, String uuid){
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         try {
             return manager.getEntry(table, Map.of("uuid", uuid));
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             return null;
         }
     }
@@ -717,11 +802,11 @@ public class EditSubCommand implements ServerCommand {
             return new TargetInfo(onlineTarget.getUniqueId().toString(), onlineTarget.getName(), true);
         }
 
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+        PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
         List<Map<String, Object>> entries;
         try {
             entries = manager.getAllEntries(Main.TABLE_NAME_PLAYER_INDEX);
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             sendMessage(sender, Chat.getMessage("edit-db-error"));
             throw new RuntimeException(e);
         }
@@ -730,11 +815,14 @@ public class EditSubCommand implements ServerCommand {
             String name = String.valueOf(entry.get("player_name"));
             if(name.equalsIgnoreCase(targetName)){
                 String uuid = String.valueOf(entry.get("uuid"));
-                Object online = entry.get("online");
-                boolean isOnline = online instanceof Boolean && (Boolean) online;
-                if(isOnline){
-                    sendMessage(sender, Chat.getMessage("edit-player-online-other-server"));
-                    return null;
+                try {
+                    if(Main.playerLeaseCoordinator.hasDatabaseLease(UUID.fromString(uuid))){
+                        sendMessage(sender, Chat.getMessage("edit-player-online-other-server"));
+                        return null;
+                    }
+                } catch (DatabaseException exception) {
+                    sendMessage(sender, Chat.getMessage("edit-db-error"));
+                    throw new RuntimeException(exception);
                 }
                 return new TargetInfo(uuid, name, false);
             }
@@ -755,17 +843,6 @@ public class EditSubCommand implements ServerCommand {
         List<String> suggestions = new ArrayList<>();
         suggestions.add("*");
 
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
-        try {
-            List<Map<String, Object>> entries = manager.getAllEntries(Main.TABLE_NAME_PLAYER_INDEX);
-            for (Map<String, Object> entry : entries){
-                String name = String.valueOf(entry.get("player_name"));
-                if(name == null || name.isEmpty()) continue;
-                suggestions.add(name);
-            }
-        } catch (MySqlError ignored) {
-        }
-
         for (Player player : Bukkit.getOnlinePlayers()){
             if(!suggestions.contains(player.getName())){
                 suggestions.add(player.getName());
@@ -776,139 +853,22 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private List<String> getValueSuggestions(String[] strings){
-        String targetName = strings[0];
         String type = normalize(strings[1]);
         int argIndex = strings.length - 1;
-
-        MySqlManager manager = Main.mySqlConnectionHandler.getManager();
-        Map<String, Object> indexEntry = findIndexEntryByName(manager, targetName);
-        if(indexEntry == null){
-            return List.of();
-        }
-        String uuid = String.valueOf(indexEntry.get("uuid"));
-
-        try {
-            switch (type){
-                case "exp" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_EXP, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "exp");
-                }
-                case "exp_level" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_EXP, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "exp_level");
-                }
-                case "health" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "health");
-                }
-                case "health_max" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "max_health");
-                }
-                case "health_scaled" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "health_scaled");
-                }
-                case "health_scale" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_HEALTH, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "health_scale");
-                }
-                case "saturation" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_SATURATION, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "saturation");
-                }
-                case "food_level" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_SATURATION, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "food_level");
-                }
-                case "gamemode" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_GAMEMODE, Map.of("uuid", uuid));
-                    if(argIndex != 2){
-                        return List.of();
-                    }
-                    return buildGamemodeSuggestions(entry);
-                }
-                case "money" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_MONEY, Map.of("uuid", uuid));
-                    return tabValue(argIndex, 2, entry, "money");
-                }
-                case "location" -> {
-                    Map<String, Object> entry = manager.getEntry(Main.TABLE_NAME_LOCATION, Map.of("uuid", uuid));
-                    if(entry == null || entry.isEmpty()){
-                        return placeholderLocation(argIndex);
-                    }
-                    if(argIndex == 2){
-                        return List.of(String.valueOf(entry.get("world")));
-                    }
-                    if(argIndex == 3){
-                        return List.of(String.valueOf(entry.get("x")));
-                    }
-                    if(argIndex == 4){
-                        return List.of(String.valueOf(entry.get("y")));
-                    }
-                    if(argIndex == 5){
-                        return List.of(String.valueOf(entry.get("z")));
-                    }
-                    if(argIndex == 6){
-                        return List.of(String.valueOf(entry.get("yaw")));
-                    }
-                    if(argIndex == 7){
-                        return List.of(String.valueOf(entry.get("pitch")));
-                    }
-                    return List.of();
-                }
-                default -> {
-                    return List.of();
-                }
+        if (type.equals("gamemode") && argIndex == 2) {
+            List<String> options = new ArrayList<>();
+            for (GameMode mode : GameMode.values()) {
+                options.add(mode.name());
             }
-        } catch (MySqlError e) {
-            return List.of();
+            return options;
         }
-    }
-
-    private Map<String, Object> findIndexEntryByName(MySqlManager manager, String name){
-        try {
-            List<Map<String, Object>> entries = manager.getAllEntries(Main.TABLE_NAME_PLAYER_INDEX);
-            for (Map<String, Object> entry : entries){
-                String entryName = String.valueOf(entry.get("player_name"));
-                if(entryName.equalsIgnoreCase(name)){
-                    return entry;
-                }
-            }
-        } catch (MySqlError ignored) {
+        if (type.equals("health_scaled") && argIndex == 2) {
+            return List.of("true", "false");
         }
-        return null;
-    }
-
-    private List<String> tabValue(int argIndex, int valueIndex, Map<String, Object> entry, String key){
-        if(argIndex != valueIndex){
-            return List.of();
+        if (type.equals("location")) {
+            return placeholderLocation(argIndex);
         }
-        if(entry == null || entry.isEmpty()){
-            return List.of();
-        }
-        Object value = entry.get(key);
-        if(value == null){
-            return List.of();
-        }
-        return List.of(String.valueOf(value));
-    }
-
-    private List<String> buildGamemodeSuggestions(Map<String, Object> entry){
-        List<String> options = new ArrayList<>();
-        if(entry != null && !entry.isEmpty()){
-            Object current = entry.get("gamemode");
-            if(current != null){
-                options.add(String.valueOf(current));
-            }
-        }
-        for (GameMode mode : GameMode.values()){
-            String name = mode.name();
-            if(!options.contains(name)){
-                options.add(name);
-            }
-        }
-        return options;
+        return List.of();
     }
 
     private List<String> placeholderLocation(int argIndex){
@@ -1006,11 +966,11 @@ public class EditSubCommand implements ServerCommand {
     }
 
     private void sendMessage(CommandSender sender, String message){
-        if(Main.IS_FOLIA && sender instanceof Player player){
-            BridgeScheduler.runEntity(player, () -> sender.sendMessage(message));
+        if(sender instanceof Player player){
+            Main.platformScheduler.runForPlayer(player, () -> sender.sendMessage(message));
             return;
         }
-        Scheduler.run(() -> sender.sendMessage(message), Main.getInstance());
+        Main.platformScheduler.runGlobal(() -> sender.sendMessage(message));
     }
 
     private String buildUsageMessage(String usage){

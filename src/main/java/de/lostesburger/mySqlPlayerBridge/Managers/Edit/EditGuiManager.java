@@ -1,10 +1,9 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.Edit;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
+import de.lostesburger.mySqlPlayerBridge.Sync.SnapshotException;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -128,42 +127,63 @@ public class EditGuiManager implements Listener {
         }
 
         Player admin = (Player) event.getPlayer();
+        Player target = Bukkit.getPlayer(session.targetUuid);
+        if(target != null && target.isOnline()){
+            applyAndSaveOnline(admin, target, session, contents);
+            return;
+        }
+
         Runnable saveTask = () -> {
-            MySqlManager manager = Main.mySqlConnectionHandler.getManager();
+            try {
+                if(Main.playerLeaseCoordinator.hasDatabaseLease(session.targetUuid)){
+                    Main.platformScheduler.runForPlayer(admin,
+                            () -> admin.sendMessage(Chat.getMessage("edit-player-online-other-server")));
+                    return;
+                }
+            } catch (DatabaseException exception) {
+                Main.platformScheduler.runForPlayer(admin,
+                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
+                throw new RuntimeException(exception);
+            }
+            PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
             String table = getTableForInventoryType(session.type);
             String column = getColumnForInventoryType(session.type);
             try {
                 manager.setOrUpdateEntry(table, Map.of("uuid", session.targetUuid.toString()), Map.of(column, serialized));
-            } catch (MySqlError e) {
-                if(Main.IS_FOLIA){
-                    BridgeScheduler.runEntity(admin, () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
-                }else {
-                    Scheduler.run(() -> admin.sendMessage(Chat.getMessage("edit-db-error")), Main.getInstance());
-                }
+            } catch (DatabaseException e) {
+                Main.platformScheduler.runForPlayer(admin,
+                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
                 throw new RuntimeException(e);
             }
 
-            if(Main.IS_FOLIA){
-                Player target = Bukkit.getPlayer(session.targetUuid);
-                if(target != null){
-                    BridgeScheduler.runEntity(target, () -> applyToPlayer(target, session.type, contents));
-                }
-                BridgeScheduler.runEntity(admin, () -> admin.sendMessage(Chat.getMessage("edit-success")));
-            }else {
-                Scheduler.run(() -> {
-                    Player target = Bukkit.getPlayer(session.targetUuid);
-                    if(target != null){
-                        applyToPlayer(target, session.type, contents);
-                    }
-                    admin.sendMessage(Chat.getMessage("edit-success"));
-                }, Main.getInstance());
-            }
+            Main.platformScheduler.runForPlayer(admin,
+                    () -> admin.sendMessage(Chat.getMessage("edit-success")));
         };
-        if(Main.IS_FOLIA){
-            BridgeScheduler.runAsync(saveTask);
-        }else {
-            Scheduler.runAsync(saveTask, Main.getInstance());
-        }
+        Main.mySqlConnectionHandler.getDatabaseExecutor().run(saveTask::run);
+    }
+
+    private void applyAndSaveOnline(Player admin, Player target, EditSession session, ItemStack[] contents){
+        Main.platformScheduler.runForPlayer(target, () -> {
+            if(Main.playerSyncService == null || !Main.playerSyncService.hasActiveLease(target.getUniqueId())){
+                Main.platformScheduler.runForPlayer(admin,
+                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
+                return;
+            }
+
+            try {
+                applyToPlayer(target, session.type, contents);
+                Main.playerSyncService.saveOnline(Main.playerSyncService.capture(target))
+                        .whenComplete((ignored, throwable) -> Main.platformScheduler.runForPlayer(admin, () ->
+                                admin.sendMessage(throwable == null
+                                        ? Chat.getMessage("edit-success")
+                                        : Chat.getMessage("edit-db-error"))));
+            } catch (SnapshotException exception) {
+                Main.getInstance().getLogger().warning("Could not capture edited inventory for "
+                        + target.getUniqueId() + ": " + exception.getMessage());
+                Main.platformScheduler.runForPlayer(admin,
+                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
+            }
+        });
     }
 
     @EventHandler

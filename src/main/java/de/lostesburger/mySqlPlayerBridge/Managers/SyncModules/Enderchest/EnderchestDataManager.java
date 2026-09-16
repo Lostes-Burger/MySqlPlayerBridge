@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Enderchest;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class EnderchestDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public EnderchestDataManager(){
         this.enabled = Main.modulesManager.syncEnderChest;
@@ -29,7 +29,7 @@ public class EnderchestDataManager {
                         new RuntimeException("Enderchest mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ENDERCHEST), false);
                 throw new RuntimeException("Enderchest mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Enderchest", "table-exists", Main.TABLE_NAME_ENDERCHEST, null,
                     e, Map.of("table", Main.TABLE_NAME_ENDERCHEST), false);
             throw new RuntimeException(e);
@@ -107,7 +107,7 @@ public class EnderchestDataManager {
                     Map.of("uuid", uuid),
                     Map.of("enderchest", serializedEnderchest)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Enderchest", "save", Main.TABLE_NAME_ENDERCHEST, null,
                     e, Map.of("uuid", uuid), false);
@@ -132,7 +132,7 @@ public class EnderchestDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_ENDERCHEST,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Enderchest", "load", Main.TABLE_NAME_ENDERCHEST, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

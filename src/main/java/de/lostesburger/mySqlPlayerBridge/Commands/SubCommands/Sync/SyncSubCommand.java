@@ -10,6 +10,8 @@ import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.logging.Level;
 
 public class SyncSubCommand implements ServerCommand {
     @Override
@@ -28,17 +30,25 @@ public class SyncSubCommand implements ServerCommand {
 
         MySqlDataManager mySqlDataManager = Main.mySqlConnectionHandler.getMySqlDataManager();
 
+        CompletableFuture<Void> save;
         if(targetName.equalsIgnoreCase("*")){
-            mySqlDataManager.saveAllOnlinePlayersAsync();
+            save = mySqlDataManager.saveAllOnlinePlayersAsync();
         }else {
             Player target = Bukkit.getPlayer(targetName);
             if(target == null){
                 commandSender.sendMessage(Chat.getMessage("manual-sync-player-not-found"));
                 return;
             }
-            mySqlDataManager.savePlayerData(target, true);
+            save = mySqlDataManager.savePlayerDataAsync(target);
         }
-        commandSender.sendMessage(Chat.getMessage("manual-sync-success"));
+        save.whenComplete((ignored, throwable) -> {
+            if(throwable == null){
+                sendMessage(commandSender, Chat.getMessage("manual-sync-success"));
+                return;
+            }
+            Main.getInstance().getLogger().log(Level.WARNING, "Manual player synchronization failed", throwable);
+            sendMessage(commandSender, Chat.getMessage("manual-sync-failed"));
+        });
     }
 
     @Override
@@ -49,5 +59,13 @@ public class SyncSubCommand implements ServerCommand {
         });
         options.add("*");
         return options;
+    }
+
+    private void sendMessage(CommandSender sender, String message){
+        if(sender instanceof Player player){
+            Main.platformScheduler.runForPlayer(player, () -> sender.sendMessage(message));
+            return;
+        }
+        Main.platformScheduler.runGlobal(() -> sender.sendMessage(message));
     }
 }

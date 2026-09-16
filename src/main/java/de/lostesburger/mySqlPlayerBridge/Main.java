@@ -2,6 +2,7 @@ package de.lostesburger.mySqlPlayerBridge;
 
 import de.craftcore.craftcore.global.minecraftVersion.Minecraft;
 import de.craftcore.craftcore.paper.configuration.lostesburger.BukkitYMLConfig;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseConfig;
 import de.lostesburger.mySqlPlayerBridge.Handlers.GitHubUpdateCheck.GitHubUpdateCheckHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection.MySqlConnectionHandler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Migration.MySqlMigrationHandler;
@@ -10,9 +11,16 @@ import de.lostesburger.mySqlPlayerBridge.Managers.ModulesManager.ModulesManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Player.PlayerManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.PlayerBridgeManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.PlayerBridge.StartupJoinLockManager;
-import de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.SyncManager;
 import de.lostesburger.mySqlPlayerBridge.Managers.Vault.VaultManager;
+import de.lostesburger.mySqlPlayerBridge.Platform.PaperFoliaPlatformScheduler;
+import de.lostesburger.mySqlPlayerBridge.Platform.PlatformScheduler;
 import de.lostesburger.mySqlPlayerBridge.Serialization.SerializationType;
+import de.lostesburger.mySqlPlayerBridge.Sync.ModuleRegistry;
+import de.lostesburger.mySqlPlayerBridge.Sync.PlayerSnapshotRepository;
+import de.lostesburger.mySqlPlayerBridge.Sync.PlayerSyncService;
+import de.lostesburger.mySqlPlayerBridge.Sync.StandardModuleRegistryFactory;
+import de.lostesburger.mySqlPlayerBridge.Sync.Lease.PlayerLeaseCoordinator;
+import de.lostesburger.mySqlPlayerBridge.Sync.Lease.PlayerLeaseRepository;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.DatabaseConfigCheck;
 import de.lostesburger.mySqlPlayerBridge.Serialization.NBTSerialization.NBTSerializer;
@@ -25,23 +33,24 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.server.PluginEnableEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 
 public final class Main extends JavaPlugin {
 
-    public static ArrayList<Scheduler.Task> schedulers = new ArrayList<Scheduler.Task>();
     public static FileConfiguration config;
     public static FileConfiguration mysqlConf;
     public static FileConfiguration messages;
 
     public static String serverType = "Unknown";
     private static Plugin instance;
-    public static String version = "3.8.0";
+    public static String version = "4.0.0";
     public static String PLUGIN_NAME = "MySqlPlayerBridge";
     public static String PREFIX;
     public static String LANGUAGE;
@@ -52,8 +61,11 @@ public final class Main extends JavaPlugin {
     public static PlayerBridgeManager playerBridgeManager;
     public static StartupJoinLockManager startupJoinLockManager;
     public static CommandManager commandManager;
-    public static SyncManager syncManager;
     public static MySqlMigrationHandler mySqlMigrationHandler;
+    public static PlatformScheduler platformScheduler;
+    public static ModuleRegistry moduleRegistry;
+    public static PlayerLeaseCoordinator playerLeaseCoordinator;
+    public static PlayerSyncService playerSyncService;
 
     public static MySqlConnectionHandler mySqlConnectionHandler;
 
@@ -65,6 +77,8 @@ public final class Main extends JavaPlugin {
     public static String TABLE_NAME_PLAYER_INDEX;
     public static String TABLE_NAME_REGISTERED_PLAYERS_LEGACY = "mpb_registered_players";
     public static String TABLE_NAME_MIGRATION;
+    public static String TABLE_NAME_SCHEMA_MIGRATIONS;
+    public static String TABLE_NAME_PLAYER_LOCKS;
 
     public static String TABLE_NAME_EFFECTS;
     public static String TABLE_NAME_ADVANCEMENTS;
@@ -84,11 +98,17 @@ public final class Main extends JavaPlugin {
     public static SerializationType serializationType = SerializationType.NBT_API;
 
     public static boolean DEBUG = false;
+    private ExecutorService databaseBootstrapExecutor;
+    private CompletableFuture<Void> databaseBootstrapFuture;
+    private volatile boolean shuttingDown;
+    private GitHubUpdateCheckHandler gitHubUpdateCheckHandler;
 
     @Override
     public void onEnable() {
+        this.shuttingDown = false;
         instance = this;
         IS_FOLIA = Minecraft.isFolia();
+        platformScheduler = new PaperFoliaPlatformScheduler(this, IS_FOLIA);
         this.getLogger().log(Level.WARNING, "Starting "+PLUGIN_NAME+" plugin v" + version);        serverType = Bukkit.getServer().getVersion();
         this.getLogger().log(Level.INFO, "Detected server type: " + serverType);
 
@@ -117,6 +137,8 @@ public final class Main extends JavaPlugin {
         TABLE_NAME = mysqlConf.getString("main-table-name");
         TABLE_NAME_PLAYER_INDEX = "mpb_player_index";
         TABLE_NAME_MIGRATION = "mpb_migration";
+        TABLE_NAME_SCHEMA_MIGRATIONS = "mpb_schema_migrations";
+        TABLE_NAME_PLAYER_LOCKS = "mpb_player_locks";
 
         TABLE_NAME_EFFECTS = TABLE_NAME + "_potion_effects";
         TABLE_NAME_ADVANCEMENTS = TABLE_NAME + "_advancements";
@@ -141,10 +163,10 @@ public final class Main extends JavaPlugin {
         String msg = "configuration changes found! Please visit the config.yml. Make sure you don't have to change settings to resume error free usage";
         if (ymlConfig.getAccessor().hasChanges()) {
             this.getLogger().log(Level.WARNING, msg);
-            Scheduler.runLaterAsync(() -> {
+            platformScheduler.runGlobalLater(() -> {
                 this.getLogger().log(Level.WARNING, msg);
                 Bukkit.broadcastMessage(PREFIX + msg);
-            }, 5 * 20, this);
+            }, 5 * 20L);
         } else {
             this.getLogger().log(Level.INFO, "No configuration changes in config.yml found.");
         }
@@ -152,10 +174,10 @@ public final class Main extends JavaPlugin {
         String msg2 = "configuration changes found! Please visit the lang/"+LANGUAGE+".yml. Make sure you don't have to change settings to resume error free usage";
         if (ymlConfigMessages.getAccessor().hasChanges()) {
             this.getLogger().log(Level.WARNING, msg2);
-            Scheduler.runLaterAsync(() -> {
+            platformScheduler.runGlobalLater(() -> {
                 this.getLogger().log(Level.WARNING, msg2);
                 Bukkit.broadcastMessage(PREFIX + msg2);
-            }, 5 * 20, this);
+            }, 5 * 20L);
         } else {
             this.getLogger().log(Level.INFO, "No configuration changes in lang/"+LANGUAGE+".yml found.");
         }
@@ -164,7 +186,8 @@ public final class Main extends JavaPlugin {
          * Checks
          */
         this.getLogger().log(Level.INFO, "Checking for updates ...");
-        new GitHubUpdateCheckHandler(this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30*60);
+        this.gitHubUpdateCheckHandler = new GitHubUpdateCheckHandler(
+                this, version, "https://github.com/Lostes-Burger/MySqlPlayerBridge", PREFIX, 30 * 60);
 
         this.getLogger().log(Level.INFO, "Checking database Configuration...");
         startupJoinLockManager.markWaitingForDatabase();
@@ -184,9 +207,9 @@ public final class Main extends JavaPlugin {
          * NBT-API
          */
         if (!Utils.isPluginEnabled("NBTAPI")) {
-            Scheduler.Task task = Scheduler.runTimerAsync(() -> {
+            PlatformScheduler.TaskHandle task = platformScheduler.runGlobalRepeating(() -> {
                 getLogger().warning("NBTAPI is not loaded make sure its installed!");
-            }, 60, 60, this);
+            }, 60L * 20L, 60L * 20L);
 
             getLogger().warning("Listening for plugin enable event...");
 
@@ -210,30 +233,65 @@ public final class Main extends JavaPlugin {
          * VaultAPI
          */
         if (modulesManager.syncVaultEconomy) {
-            this.getLogger().log(Level.INFO, "Loading Vault API Module...");
+            this.getLogger().log(Level.INFO, "Loading Vault economy module...");
             vaultManager = new VaultManager();
-            this.getLogger().log(Level.INFO, "Loaded Vault API Module");
+            this.getLogger().log(Level.INFO,
+                    "Loaded Vault economy provider: " + vaultManager.providerName());
         }
 
-        /**
-         * Database
-         */
+        this.databaseBootstrapExecutor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "MySqlPlayerBridge-Database-Bootstrap");
+            thread.setDaemon(true);
+            return thread;
+        });
+        this.databaseBootstrapFuture = CompletableFuture.runAsync(
+                this::initializeDatabase,
+                this.databaseBootstrapExecutor
+        ).whenComplete((ignored, throwable) -> this.databaseBootstrapExecutor.shutdown());
+    }
+
+    private void initializeDatabase() {
+        if (this.shuttingDown) {
+            return;
+        }
         try {
-            mySqlConnectionHandler = new MySqlConnectionHandler(
-                    mysqlConf.getString("host"),
-                    mysqlConf.getInt("port"),
-                    mysqlConf.getString("database"),
-                    mysqlConf.getString("user"),
-                    mysqlConf.getString("password")
-            );
-            if(!mySqlConnectionHandler.getMySQL().isConnectionAlive()){
+            mySqlConnectionHandler = new MySqlConnectionHandler(DatabaseConfig.from(mysqlConf));
+            if (this.shuttingDown) {
+                mySqlConnectionHandler.close();
+                mySqlConnectionHandler = null;
+                return;
+            }
+            if(!mySqlConnectionHandler.getManager().isConnectionAlive()){
                 throw new IllegalStateException("MySQL connection is not alive after initialization");
             }
 
-            /**
-             * SyncModules
-             */
-            syncManager = new SyncManager();
+            moduleRegistry = StandardModuleRegistryFactory.create(mySqlConnectionHandler.getManager());
+            PlayerLeaseRepository leaseRepository = new PlayerLeaseRepository(
+                    mySqlConnectionHandler.getManager(),
+                    TABLE_NAME_PLAYER_LOCKS,
+                    mysqlConf.getInt("lease.duration-seconds", 15)
+            );
+            playerLeaseCoordinator = new PlayerLeaseCoordinator(
+                    leaseRepository,
+                    mySqlConnectionHandler.getDatabaseExecutor(),
+                    mysqlConf.getInt("lease.heartbeat-seconds", 5),
+                    mysqlConf.getInt("lease.join-wait-timeout-seconds", 20),
+                    warning -> getLogger().warning(warning)
+            );
+            this.getLogger().info("Runtime database owner instance UUID: "
+                    + playerLeaseCoordinator.instanceUuid());
+            PlayerSnapshotRepository snapshotRepository = new PlayerSnapshotRepository(
+                    mySqlConnectionHandler.getManager(), leaseRepository, TABLE_NAME_PLAYER_INDEX);
+            playerSyncService = new PlayerSyncService(
+                    moduleRegistry,
+                    snapshotRepository,
+                    playerLeaseCoordinator,
+                    mySqlConnectionHandler.getDatabaseExecutor(),
+                    platformScheduler,
+                    mysqlConf.getInt("lease.join-wait-timeout-seconds", 20) + 10L,
+                    mysqlConf.getInt("save-retry.maximum-attempts", 3),
+                    mysqlConf.getLong("save-retry.delay-ms", 250L)
+            );
 
             /**
              * Migration
@@ -247,10 +305,10 @@ public final class Main extends JavaPlugin {
              * Managers
              */
             mySqlMigrationHandler.runWhenMigrationComplete(() -> {
+                if (this.shuttingDown) {
+                    return;
+                }
                 try {
-                    if(!mySqlConnectionHandler.getMySqlDataManager().checkDatabaseConnection()){
-                        throw new IllegalStateException("MySQL connection is not alive after migration");
-                    }
                     playerManager = new PlayerManager();
                     playerBridgeManager = new PlayerBridgeManager();
                     commandManager = new CommandManager();
@@ -270,21 +328,39 @@ public final class Main extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        this.shuttingDown = true;
         if(startupJoinLockManager != null){
             startupJoinLockManager.lockForShutdown();
         }
         this.getLogger().log(Level.WARNING, "Stopping "+PLUGIN_NAME+" plugin v"+version);
-        if(mySqlConnectionHandler != null && playerBridgeManager != null){
-            mySqlConnectionHandler.getMySqlDataManager().saveAllOnlinePlayers();
+        if(this.databaseBootstrapExecutor != null){
+            this.databaseBootstrapExecutor.shutdownNow();
+        }
+        if(this.databaseBootstrapFuture != null){
+            try {
+                this.databaseBootstrapFuture.get(5L, TimeUnit.SECONDS);
+            } catch (Exception exception) {
+                this.getLogger().log(Level.WARNING, "Database bootstrap did not stop cleanly", exception);
+            }
+        }
+        if(playerBridgeManager != null){
+            try {
+                playerBridgeManager.shutdown().get(10L, TimeUnit.SECONDS);
+            } catch (Exception exception) {
+                this.getLogger().log(Level.SEVERE, "Timed out while draining player saves during shutdown", exception);
+            }
+        }
+        if(playerLeaseCoordinator != null){
+            playerLeaseCoordinator.close();
+        }
+        if(this.gitHubUpdateCheckHandler != null){
+            this.gitHubUpdateCheckHandler.close();
         }
 
         this.getLogger().log(Level.INFO, "Closing MySql connection...");
         if(mySqlConnectionHandler != null) {
-            mySqlConnectionHandler.getMySQL().closeConnection();
+            mySqlConnectionHandler.close();
         }
-
-        this.getLogger().log(Level.INFO, "Stopping running scheduler tasks...");
-        schedulers.forEach(Scheduler.Task::cancel);
     }
 
     private void tryInitNBTSerializer() {

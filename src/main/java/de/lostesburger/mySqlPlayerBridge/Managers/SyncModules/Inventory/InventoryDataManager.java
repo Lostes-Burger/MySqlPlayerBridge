@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Inventory;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class InventoryDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public InventoryDataManager(){
         this.enabled = Main.modulesManager.syncInventory;
@@ -29,7 +29,7 @@ public class InventoryDataManager {
                         new RuntimeException("Inventory mysql table is missing!"), Map.of("table", Main.TABLE_NAME_INVENTORY), false);
                 throw new RuntimeException("Inventory mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Inventory", "table-exists", Main.TABLE_NAME_INVENTORY, null,
                     e, Map.of("table", Main.TABLE_NAME_INVENTORY), false);
             throw new RuntimeException(e);
@@ -106,7 +106,7 @@ public class InventoryDataManager {
                     Map.of("uuid", uuid),
                     Map.of("inventory", serializedInventory)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Inventory", "save", Main.TABLE_NAME_INVENTORY, null,
                     e, Map.of("uuid", uuid), false);
@@ -131,7 +131,7 @@ public class InventoryDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_INVENTORY,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Inventory", "load", Main.TABLE_NAME_INVENTORY, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

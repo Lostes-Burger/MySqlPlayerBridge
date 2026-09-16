@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Gamemode;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -15,7 +15,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class GamemodeDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public GamemodeDataManager(){
         this.enabled = Main.modulesManager.syncGamemode;
@@ -27,7 +27,7 @@ public class GamemodeDataManager {
                         new RuntimeException("Gamemode mysql table is missing!"), Map.of("table", Main.TABLE_NAME_GAMEMODE), false);
                 throw new RuntimeException("Gamemode mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Gamemode", "table-exists", Main.TABLE_NAME_GAMEMODE, null,
                     e, Map.of("table", Main.TABLE_NAME_GAMEMODE), false);
             throw new RuntimeException(e);
@@ -80,7 +80,7 @@ public class GamemodeDataManager {
                     Map.of("uuid", uuid),
                     Map.of("gamemode", gameMode)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Gamemode", "save", Main.TABLE_NAME_GAMEMODE, null,
                     e, Map.of("uuid", uuid), false);
         }
@@ -100,7 +100,7 @@ public class GamemodeDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_GAMEMODE,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Gamemode", "load", Main.TABLE_NAME_GAMEMODE, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

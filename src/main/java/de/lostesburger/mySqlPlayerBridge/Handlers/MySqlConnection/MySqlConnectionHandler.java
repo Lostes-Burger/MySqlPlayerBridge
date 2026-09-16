@@ -1,128 +1,136 @@
 package de.lostesburger.mySqlPlayerBridge.Handlers.MySqlConnection;
 
-import de.craftcore.craftcore.global.mysql.MySQL;
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseConfig;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseExecutor;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseSchemaMigrator;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Managers.MySqlData.MySqlDataManager;
 
+import java.util.List;
 
-public class MySqlConnectionHandler {
-    private final MySQL mySQL;
-    private final MySqlManager mySqlManager;
+public class MySqlConnectionHandler implements AutoCloseable {
+    private final PooledSqlManager sqlManager;
+    private final DatabaseExecutor databaseExecutor;
     private final MySqlDataManager mySqlDataManager;
 
-    public MySqlConnectionHandler(String host, int port, String database, String username, String password) {
+    public MySqlConnectionHandler(DatabaseConfig databaseConfig) {
+        PooledSqlManager createdManager = null;
+        DatabaseExecutor createdExecutor = null;
         try {
-            this.mySQL = new MySQL(host, port, username, password, database);
-        } catch (Exception e) {
+            createdManager = new PooledSqlManager(databaseConfig);
+            createdExecutor = new DatabaseExecutor(databaseConfig.maximumPoolSize());
+            createTables(createdManager);
+            this.sqlManager = createdManager;
+            this.databaseExecutor = createdExecutor;
+            this.mySqlDataManager = new MySqlDataManager();
+        } catch (Exception exception) {
+            if (createdExecutor != null) {
+                createdExecutor.close();
+            }
+            if (createdManager != null) {
+                createdManager.close();
+            }
             new MySqlErrorHandler().onInitialize();
-            throw new RuntimeException(e);
-        }
-        try {
-            mySqlManager = new MySqlManager(mySQL);
-        } catch (MySqlError e) {
-            new MySqlErrorHandler().onManagerInitialize();
-            throw new RuntimeException(e);
-        }
-
-        this.createTables();
-        this.mySqlDataManager = new MySqlDataManager(mySqlManager);
-    }
-
-    private void createTables() {
-        try {
-            mySqlManager.createTable(Main.TABLE_NAME_PLAYER_INDEX,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.varchar("player_name", 32),
-                    MySqlManager.ColumnDefinition.text("timestamp"),
-                    MySqlManager.ColumnDefinition.Boolean("online"),
-                    MySqlManager.ColumnDefinition.text("server_id")
-            );
-            mySqlManager.createTable(Main.TABLE_NAME_MIGRATION,
-                    MySqlManager.ColumnDefinition.text("migration"),
-                    MySqlManager.ColumnDefinition.Boolean("running_migration"),
-                    MySqlManager.ColumnDefinition.text("timestamp")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_EFFECTS,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("effects")
-            );
-            mySqlManager.createTable(Main.TABLE_NAME_ADVANCEMENTS,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("advancements")
-            );
-            mySqlManager.createTable(Main.TABLE_NAME_STATS,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("stats")
-            );
-            mySqlManager.createTable(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.integer("slot")
-            );
-            mySqlManager.createTable(Main.TABLE_NAME_SATURATION,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.Float("saturation"),
-                    MySqlManager.ColumnDefinition.integer("food_level")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_LOCATION,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.text("world"),
-                    MySqlManager.ColumnDefinition.doubLe("x"),
-                    MySqlManager.ColumnDefinition.doubLe("y"),
-                    MySqlManager.ColumnDefinition.doubLe("z"),
-                    MySqlManager.ColumnDefinition.Float("yaw"),
-                    MySqlManager.ColumnDefinition.Float("pitch")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_EXP,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.integer("exp_level"),
-                    MySqlManager.ColumnDefinition.Float("exp")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_GAMEMODE,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.text("gamemode")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_INVENTORY,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("inventory")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_ARMOR,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("armor")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_ENDERCHEST,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.longText("enderchest")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_HEALTH,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.doubLe("health"),
-                    MySqlManager.ColumnDefinition.doubLe("max_health"),
-                    MySqlManager.ColumnDefinition.Boolean("health_scaled"),
-                    MySqlManager.ColumnDefinition.doubLe("health_scale")
-            );
-
-            mySqlManager.createTable(Main.TABLE_NAME_MONEY,
-                    MySqlManager.ColumnDefinition.varchar("uuid", 36),
-                    MySqlManager.ColumnDefinition.doubLe("money")
-            );
-        } catch (MySqlError e) {
-            new MySqlErrorHandler().onTableCreate();
-            throw new RuntimeException(e);
+            throw new RuntimeException("Could not initialize pooled database access", exception);
         }
     }
 
-    public MySqlManager getManager(){ return mySqlManager; }
-    public MySQL getMySQL(){ return this.mySQL; }
-    public MySqlDataManager getMySqlDataManager(){ return this.mySqlDataManager; }
+    private void createTables(PooledSqlManager manager) throws DatabaseException {
+        createTable(manager, Main.TABLE_NAME_PLAYER_INDEX,
+                "`uuid` VARCHAR(36) NOT NULL PRIMARY KEY, " +
+                        "`player_name` VARCHAR(32) NOT NULL DEFAULT '', " +
+                        "`timestamp` TEXT, " +
+                        "`online` BOOLEAN NOT NULL DEFAULT FALSE, " +
+                        "`server_id` TEXT");
+        createTable(manager, Main.TABLE_NAME_MIGRATION,
+                "`migration` VARCHAR(64) NOT NULL PRIMARY KEY, " +
+                        "`running_migration` BOOLEAN NOT NULL DEFAULT FALSE, " +
+                        "`timestamp` TEXT");
+        createTable(manager, Main.TABLE_NAME_SCHEMA_MIGRATIONS,
+                "`version` INT NOT NULL PRIMARY KEY, " +
+                        "`description` VARCHAR(255) NOT NULL, " +
+                        "`applied_at` DATETIME(3) NOT NULL");
+        createTable(manager, Main.TABLE_NAME_PLAYER_LOCKS,
+                "`player_uuid` VARCHAR(36) NOT NULL PRIMARY KEY, " +
+                        "`owner_instance_uuid` VARCHAR(36) NOT NULL, " +
+                        "`session_token` VARCHAR(36) NOT NULL, " +
+                        "`state` VARCHAR(16) NOT NULL, " +
+                        "`lease_until` DATETIME(3) NOT NULL, " +
+                        "`updated_at` DATETIME(3) NOT NULL");
+
+        createUuidTable(manager, Main.TABLE_NAME_EFFECTS, "`effects` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_ADVANCEMENTS, "`advancements` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_STATS, "`stats` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_SELECTED_HOTBAR_SLOT, "`slot` INT");
+        createUuidTable(manager, Main.TABLE_NAME_SATURATION, "`saturation` FLOAT, `food_level` INT");
+        createUuidTable(manager, Main.TABLE_NAME_LOCATION,
+                "`world` TEXT, `x` DOUBLE, `y` DOUBLE, `z` DOUBLE, `yaw` FLOAT, `pitch` FLOAT");
+        createUuidTable(manager, Main.TABLE_NAME_EXP, "`exp_level` INT, `exp` FLOAT");
+        createUuidTable(manager, Main.TABLE_NAME_GAMEMODE, "`gamemode` TEXT");
+        createUuidTable(manager, Main.TABLE_NAME_INVENTORY, "`inventory` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_ARMOR, "`armor` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_ENDERCHEST, "`enderchest` LONGTEXT");
+        createUuidTable(manager, Main.TABLE_NAME_HEALTH,
+                "`health` DOUBLE, `max_health` DOUBLE, `health_scaled` BOOLEAN, `health_scale` DOUBLE");
+        createUuidTable(manager, Main.TABLE_NAME_MONEY, "`money` DOUBLE");
+
+        DatabaseSchemaMigrator schemaMigrator = new DatabaseSchemaMigrator(
+                manager,
+                Main.TABLE_NAME_SCHEMA_MIGRATIONS,
+                message -> Main.getInstance().getLogger().warning("[Schema migration] " + message)
+        );
+        schemaMigrator.migrate(List.of(
+                uuidKey(Main.TABLE_NAME_PLAYER_INDEX),
+                new DatabaseSchemaMigrator.UniqueKeyTable(Main.TABLE_NAME_MIGRATION, "migration", "VARCHAR(64)"),
+                uuidKey(Main.TABLE_NAME_EFFECTS),
+                uuidKey(Main.TABLE_NAME_ADVANCEMENTS),
+                uuidKey(Main.TABLE_NAME_STATS),
+                uuidKey(Main.TABLE_NAME_SELECTED_HOTBAR_SLOT),
+                uuidKey(Main.TABLE_NAME_SATURATION),
+                uuidKey(Main.TABLE_NAME_LOCATION),
+                uuidKey(Main.TABLE_NAME_EXP),
+                uuidKey(Main.TABLE_NAME_GAMEMODE),
+                uuidKey(Main.TABLE_NAME_INVENTORY),
+                uuidKey(Main.TABLE_NAME_ARMOR),
+                uuidKey(Main.TABLE_NAME_ENDERCHEST),
+                uuidKey(Main.TABLE_NAME_HEALTH),
+                uuidKey(Main.TABLE_NAME_MONEY)
+        ));
+    }
+
+    private DatabaseSchemaMigrator.UniqueKeyTable uuidKey(String table) {
+        return new DatabaseSchemaMigrator.UniqueKeyTable(table, "uuid", "VARCHAR(36)");
+    }
+
+    private void createUuidTable(PooledSqlManager manager, String table, String moduleColumns) throws DatabaseException {
+        createTable(manager, table, "`uuid` VARCHAR(36) NOT NULL PRIMARY KEY, " + moduleColumns);
+    }
+
+    private void createTable(PooledSqlManager manager, String table, String columns) throws DatabaseException {
+        manager.executeUpdate(
+                "CREATE TABLE IF NOT EXISTS " + PooledSqlManager.quoted(table)
+                        + " (" + columns + ") ENGINE=InnoDB"
+        );
+    }
+
+    public PooledSqlManager getManager() {
+        return this.sqlManager;
+    }
+
+    public DatabaseExecutor getDatabaseExecutor() {
+        return this.databaseExecutor;
+    }
+
+    public MySqlDataManager getMySqlDataManager() {
+        return this.mySqlDataManager;
+    }
+
+    @Override
+    public void close() {
+        this.databaseExecutor.close();
+        this.sqlManager.close();
+    }
 }

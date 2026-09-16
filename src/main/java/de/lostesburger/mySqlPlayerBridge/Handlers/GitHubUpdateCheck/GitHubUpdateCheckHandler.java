@@ -3,7 +3,6 @@ package de.lostesburger.mySqlPlayerBridge.Handlers.GitHubUpdateCheck;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.GitHubUpdateCheck.GitHubUpdateCheck;
 import de.lostesburger.mySqlPlayerBridge.Utils.Checks.GitHubUpdateCheck.GitHubUpdateCheckResult;
-import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.craftcore.craftcore.paper.chat.colorutils.ColorUtils;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import net.kyori.adventure.audience.Audience;
@@ -15,7 +14,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-public class GitHubUpdateCheckHandler implements Listener {
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
+public class GitHubUpdateCheckHandler implements Listener, AutoCloseable {
     private static final String DEFAULT_RELEASE_URL = "https://github.com/Lostes-Burger/MySqlPlayerBridge/releases/latest";
     private static final String USERNAME_NOTIFY_OVERRIDE = "Lostes_Burger";
 
@@ -27,67 +30,80 @@ public class GitHubUpdateCheckHandler implements Listener {
     private final String repoUrl;
     private final JavaPlugin plugin;
     private final String currentVersion;
+    private final ScheduledExecutorService updateExecutor;
 
     public GitHubUpdateCheckHandler(JavaPlugin plugin, String currentVersion, String githubUrl, String prefix, int checkInterval) {
         this.repoUrl = githubUrl;
         this.prefix = prefix;
         this.plugin = plugin;
         this.currentVersion = currentVersion;
+        this.updateExecutor = Executors.newSingleThreadScheduledExecutor(runnable -> {
+            Thread thread = new Thread(runnable, "MySqlPlayerBridge-Update-Checker");
+            thread.setDaemon(true);
+            return thread;
+        });
 
-        Scheduler.runTimerAsync(() -> {
-            try {
-                GitHubUpdateCheckResult result = new GitHubUpdateCheck(this.repoUrl, this.currentVersion).checkForUpdate();
+        this.updateExecutor.scheduleWithFixedDelay(
+                this::checkForUpdate,
+                5L,
+                Math.max(1L, checkInterval),
+                TimeUnit.SECONDS
+        );
 
-                if (!result.isSuccess()) {
-                    this.updateAvailable = false;
-                    String failedTemplate = resolveMessage(
-                            "update-check-failed",
-                            "GitHub update check failed: {reason}"
-                    );
-                    this.plugin.getLogger().warning(
-                            failedTemplate.replace("{reason}", result.getErrorMessage())
-                    );
-                    return;
-                }
+        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+    }
 
-                if (result.getReleaseUrl() != null && !result.getReleaseUrl().isBlank()) {
-                    this.releaseUrl = result.getReleaseUrl();
-                } else {
-                    this.releaseUrl = DEFAULT_RELEASE_URL;
-                }
+    private void checkForUpdate() {
+        try {
+            GitHubUpdateCheckResult result = new GitHubUpdateCheck(this.repoUrl, this.currentVersion).checkForUpdate();
 
-                String latestForMessage = result.getLatestVersion() == null || result.getLatestVersion().isBlank()
-                        ? this.currentVersion
-                        : result.getLatestVersion();
-
-                String updateMessageKey = result.isPreRelease() ? "update-available-prerelease" : "update-available";
-                this.message = resolveMessage(
-                        updateMessageKey,
-                        "A new version is available. Installed: {installed}, latest: {latest}."
-                )
-                        .replace("{latest}", latestForMessage)
-                        .replace("{installed}", this.currentVersion);
-                this.updateAvailable = result.isUpdateAvailable();
-
-                if (this.updateAvailable) {
-                    plugin.getLogger().warning(this.message);
-                    plugin.getLogger().warning(this.releaseUrl);
-                }
-
-            } catch (Throwable throwable) {
+            if (!result.isSuccess()) {
                 this.updateAvailable = false;
                 String failedTemplate = resolveMessage(
                         "update-check-failed",
                         "GitHub update check failed: {reason}"
                 );
-                String reason = throwable.getMessage() == null || throwable.getMessage().isBlank()
-                        ? throwable.getClass().getSimpleName()
-                        : throwable.getMessage();
-                plugin.getLogger().warning(failedTemplate.replace("{reason}", reason));
+                this.plugin.getLogger().warning(
+                        failedTemplate.replace("{reason}", result.getErrorMessage())
+                );
+                return;
             }
-        }, 100L, checkInterval*20, plugin);
 
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+            if (result.getReleaseUrl() != null && !result.getReleaseUrl().isBlank()) {
+                this.releaseUrl = result.getReleaseUrl();
+            } else {
+                this.releaseUrl = DEFAULT_RELEASE_URL;
+            }
+
+            String latestForMessage = result.getLatestVersion() == null || result.getLatestVersion().isBlank()
+                    ? this.currentVersion
+                    : result.getLatestVersion();
+
+            String updateMessageKey = result.isPreRelease() ? "update-available-prerelease" : "update-available";
+            this.message = resolveMessage(
+                    updateMessageKey,
+                    "A new version is available. Installed: {installed}, latest: {latest}."
+            )
+                    .replace("{latest}", latestForMessage)
+                    .replace("{installed}", this.currentVersion);
+            this.updateAvailable = result.isUpdateAvailable();
+
+            if (this.updateAvailable) {
+                plugin.getLogger().warning(this.message);
+                plugin.getLogger().warning(this.releaseUrl);
+            }
+
+        } catch (Throwable throwable) {
+            this.updateAvailable = false;
+            String failedTemplate = resolveMessage(
+                    "update-check-failed",
+                    "GitHub update check failed: {reason}"
+            );
+            String reason = throwable.getMessage() == null || throwable.getMessage().isBlank()
+                    ? throwable.getClass().getSimpleName()
+                    : throwable.getMessage();
+            plugin.getLogger().warning(failedTemplate.replace("{reason}", reason));
+        }
     }
 
     @EventHandler
@@ -101,7 +117,7 @@ public class GitHubUpdateCheckHandler implements Listener {
             return;
         }
 
-        Scheduler.runLater(() -> {
+        Main.platformScheduler.runForPlayerLater(player, () -> {
             if (!player.isOnline()) {
                 return;
             }
@@ -115,7 +131,7 @@ public class GitHubUpdateCheckHandler implements Listener {
             ((Audience) player).sendMessage(updateMessage);
             ((Audience) player).sendMessage(downloadMessage);
             player.sendMessage(ColorUtils.toColor(this.prefix + "§c" + this.message));
-        }, 120L, this.plugin);
+        }, 120L);
     }
 
     private boolean canReceiveUpdateNotify(Player player) {
@@ -137,5 +153,10 @@ public class GitHubUpdateCheckHandler implements Listener {
             return fallback;
         }
         return messageValue;
+    }
+
+    @Override
+    public void close() {
+        this.updateExecutor.shutdownNow();
     }
 }

@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Armor;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.CrossVersionItemSyncException;
 import de.lostesburger.mySqlPlayerBridge.Exceptions.NBTSerializationException;
@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class ArmorDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public ArmorDataManager(){
         this.enabled = Main.modulesManager.syncArmorSlots;
@@ -29,7 +29,7 @@ public class ArmorDataManager {
                         new RuntimeException("Armor mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ARMOR), false);
                 throw new RuntimeException("Armor mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Armor", "table-exists", Main.TABLE_NAME_ARMOR, null,
                     e, Map.of("table", Main.TABLE_NAME_ARMOR), false);
             throw new RuntimeException(e);
@@ -107,7 +107,7 @@ public class ArmorDataManager {
                     Map.of("uuid", uuid),
                     Map.of("armor", serializedArmor)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Armor", "save", Main.TABLE_NAME_ARMOR, null,
                     e, Map.of("uuid", uuid), false);
@@ -132,7 +132,7 @@ public class ArmorDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_ARMOR,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Armor", "load", Main.TABLE_NAME_ARMOR, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Advancement;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class AdvancementDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public AdvancementDataManager() {
         this.enabled = Main.modulesManager.syncAdvancements;
@@ -26,7 +26,7 @@ public class AdvancementDataManager {
                         new RuntimeException("Advancements mysql table is missing!"), Map.of("table", Main.TABLE_NAME_ADVANCEMENTS), false);
                 throw new RuntimeException("Advancements mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Advancement", "table-exists", Main.TABLE_NAME_ADVANCEMENTS, null,
                     e, Map.of("table", Main.TABLE_NAME_ADVANCEMENTS), false);
             throw new RuntimeException(e);
@@ -79,7 +79,7 @@ public class AdvancementDataManager {
                     Map.of("uuid", uuid),
                     Map.of("advancements", serializedAdvancements)
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Advancement", "save", Main.TABLE_NAME_ADVANCEMENTS, null,
                     e, Map.of("uuid", uuid), false);
         }
@@ -99,7 +99,7 @@ public class AdvancementDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_ADVANCEMENTS,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Advancement", "load", Main.TABLE_NAME_ADVANCEMENTS, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);

@@ -1,7 +1,6 @@
 package de.lostesburger.mySqlPlayerBridge.Utils.Checks;
 
 
-import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
@@ -10,8 +9,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
-
-import java.util.Objects;
 
 public class DatabaseConfigCheck implements Listener {
     private final FileConfiguration mysql;
@@ -23,27 +20,20 @@ public class DatabaseConfigCheck implements Listener {
 
         if(!this.isSetup){
             Bukkit.getPluginManager().registerEvents(this, Main.getInstance());
-            Scheduler.Task task = Scheduler.runTimer(() -> {
+            Main.platformScheduler.runGlobalRepeating(() -> {
                 Bukkit.broadcastMessage(Chat.getMessage("no-database-config-error"));
-            }, 40, 40, Main.getInstance());
-            Main.schedulers.add(task);
+            }, 40L, 40L);
         }
     }
 
     private boolean check() {
-        if(Objects.requireNonNull(this.mysql.getString("host")).isEmpty() | this.mysql.getString("host") == null){
-            return false;
-        }
+        return isConfigured(this.mysql.getString("host"))
+                && isConfigured(this.mysql.getString("database"))
+                && isConfigured(this.mysql.getString("user"));
+    }
 
-        if(Objects.requireNonNull(this.mysql.getString("database")).isEmpty() | this.mysql.getString("database") == null){
-            return false;
-        }
-
-        if(Objects.requireNonNull(this.mysql.getString("user")).isEmpty() | this.mysql.getString("user") == null){
-            return false;
-        }
-
-        return true;
+    private static boolean isConfigured(String value) {
+        return value != null && !value.isBlank();
     }
 
     public boolean isSetup(){return this.isSetup; }

@@ -1,9 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.NoEntryProtection;
 
 
-import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Utils.BridgeScheduler;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.entity.Player;
 
@@ -14,20 +12,11 @@ public class NoEntryProtection {
         String message = Chat.getMessage("no-entry-protection-kick");
 
         if(player == null) return;
-        if(Main.IS_FOLIA){
-            BridgeScheduler.runEntity(player, () -> {
-                player.sendMessage(Chat.msg(message));
-                player.kickPlayer(message);
-            });
-            return;
-        }
-        Scheduler.run(() -> {
-            player.sendMessage(Chat.msg(message));
-            player.kickPlayer(message);
-        }, Main.getInstance());
-
-
+        player.sendMessage(Chat.msg(message));
+        player.kickPlayer(message);
     }
+
+    /** Must be invoked from the player's Paper main/Folia entity context. */
     public static boolean isTriggered(Player player) {
         boolean triggered = Main.config.getBoolean("settings.no-entry-protection");
         if(triggered){

@@ -4,4 +4,4 @@ main: de.lostesburger.mySqlPlayerBridge.Main
 authors: [ LostesBurger ]
 folia-supported: true
 depend: [NBTAPI]
-softdepend: [VAULT]
+softdepend: [Vault]

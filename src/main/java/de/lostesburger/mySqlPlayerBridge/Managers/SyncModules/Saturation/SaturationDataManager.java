@@ -1,7 +1,7 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.SyncModules.Saturation;
 
-import de.craftcore.craftcore.global.mysql.MySqlError;
-import de.craftcore.craftcore.global.mysql.MySqlManager;
+import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
+import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.craftcore.craftcore.global.scheduler.Scheduler;
 import de.lostesburger.mySqlPlayerBridge.Handlers.Errors.MySqlErrorHandler;
 import de.lostesburger.mySqlPlayerBridge.Main;
@@ -14,7 +14,7 @@ import java.util.concurrent.CompletableFuture;
 
 public class SaturationDataManager {
     private final boolean enabled;
-    private final MySqlManager mySqlManager;
+    private final PooledSqlManager mySqlManager;
 
     public SaturationDataManager(){
         this.enabled = Main.modulesManager.syncSaturation;
@@ -26,7 +26,7 @@ public class SaturationDataManager {
                         new RuntimeException("Saturation mysql table is missing!"), Map.of("table", Main.TABLE_NAME_SATURATION), false);
                 throw new RuntimeException("Saturation mysql table is missing!");
             }
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             new MySqlErrorHandler().logSyncError("Saturation", "table-exists", Main.TABLE_NAME_SATURATION, null,
                     e, Map.of("table", Main.TABLE_NAME_SATURATION), false);
             throw new RuntimeException(e);
@@ -84,7 +84,7 @@ public class SaturationDataManager {
                             "food_level", foodlevel
                     )
             );
-        } catch (MySqlError e) {
+        } catch (DatabaseException e) {
             MySqlErrorHandler errorHandler = new MySqlErrorHandler();
             String errorId = errorHandler.logSyncError("Saturation", "save", Main.TABLE_NAME_SATURATION, null,
                     e, Map.of("uuid", uuid), false);
@@ -110,7 +110,7 @@ public class SaturationDataManager {
                 entry = mySqlManager.getEntry(Main.TABLE_NAME_SATURATION,
                         Map.of("uuid", playerUuid)
                 );
-            } catch (MySqlError e) {
+            } catch (DatabaseException e) {
                 new MySqlErrorHandler().logSyncError("Saturation", "load", Main.TABLE_NAME_SATURATION, player,
                         e, Map.of("uuid", playerUuid), true);
                 future.completeExceptionally(e);
