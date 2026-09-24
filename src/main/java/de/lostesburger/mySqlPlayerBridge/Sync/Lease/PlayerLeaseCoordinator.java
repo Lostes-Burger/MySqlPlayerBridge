@@ -95,6 +95,12 @@ public final class PlayerLeaseCoordinator implements AutoCloseable {
         return this.repository.hasAnyUnexpiredLease();
     }
 
+    public boolean editOffline(UUID playerUuid,
+            de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager.TransactionWork<Void> edit)
+            throws DatabaseException {
+        return this.repository.editOffline(playerUuid, edit);
+    }
+
     public boolean markOnline(PlayerLease lease) {
         ActiveLease activeLease = this.activeLeases.get(lease.playerUuid());
         if (activeLease == null || !activeLease.lease().sessionToken().equals(lease.sessionToken())) {

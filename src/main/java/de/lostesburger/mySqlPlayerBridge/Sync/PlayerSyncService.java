@@ -109,6 +109,32 @@ public final class PlayerSyncService {
         return save(snapshot, lease, false);
     }
 
+    /** Apply in the entity context, then acknowledge only the committed snapshot. */
+    public CompletableFuture<Void> editOnline(Player player, String moduleId,
+            java.util.function.Function<Player, CompletableFuture<Void>> edit) {
+        PlayerLease lease = this.leaseCoordinator.activeLease(player.getUniqueId());
+        if (lease == null) {
+            return missingLease(player.getUniqueId());
+        }
+        return PlayerEditExecution.execute(this.platformScheduler, player,
+                () -> requireEditable(player, lease), edit, () -> saveEdited(player, lease, moduleId));
+    }
+
+    private CompletableFuture<Void> saveEdited(Player player, PlayerLease lease, String moduleId)
+            throws SnapshotException {
+        requireEditable(player, lease);
+        PlayerSnapshot snapshot = this.snapshotFactory.capture(player, moduleId);
+        this.latestSnapshots.put(snapshot.playerUuid(), new BoundSnapshot(snapshot, lease));
+        return save(snapshot, lease, false);
+    }
+
+    private void requireEditable(Player player, PlayerLease lease) {
+        if (!this.leaseCoordinator.isActive(lease) || !player.isOnline()
+                || Main.mySqlConnectionHandler.getMySqlDataManager().isJoinSyncLocked(player.getUniqueId())) {
+            throw new IllegalStateException("Player session is not ready for editing: " + player.getUniqueId());
+        }
+    }
+
     public CompletableFuture<Void> captureAndSaveOnline(Player player) {
         PlayerLease lease = this.leaseCoordinator.activeLease(player.getUniqueId());
         if (lease == null) {

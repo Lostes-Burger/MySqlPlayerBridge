@@ -37,6 +37,22 @@ public final class PlayerLeaseRepository {
         return this.leaseDurationSeconds;
     }
 
+    /** Acquire, edit and release under the same row lock used by joins and snapshot saves. */
+    public boolean editOffline(java.util.UUID playerUuid, PooledSqlManager.TransactionWork<Void> edit)
+            throws DatabaseException {
+        PlayerLease temporary = new PlayerLease(playerUuid, java.util.UUID.randomUUID(), java.util.UUID.randomUUID());
+        return this.sqlManager.inTransaction(connection -> {
+            if (tryAcquire(connection, temporary) != LeaseAcquireResult.ACQUIRED) {
+                return false;
+            }
+            edit.execute(connection);
+            if (!release(connection, temporary)) {
+                throw new LeaseLostException(temporary);
+            }
+            return true;
+        });
+    }
+
     private LeaseAcquireResult tryAcquire(Connection connection, PlayerLease requestedLease) throws SQLException {
         String selectSql = "SELECT `owner_instance_uuid`, `session_token`, "
                 + "(`lease_until` <= CURRENT_TIMESTAMP(3)) AS `expired` FROM " + this.table

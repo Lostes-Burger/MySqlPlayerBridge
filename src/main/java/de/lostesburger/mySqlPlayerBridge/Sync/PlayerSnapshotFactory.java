@@ -14,8 +14,12 @@ public final class PlayerSnapshotFactory {
     }
 
     public PlayerSnapshot capture(Player player) throws SnapshotException {
+        return capture(player, null);
+    }
+
+    public PlayerSnapshot capture(Player player, String editedModule) throws SnapshotException {
         List<CapturedModule<?>> capturedModules = new ArrayList<>();
-        for (SyncModule<?> module : this.moduleRegistry.enabledModules()) {
+        for (SyncModule<?> module : this.moduleRegistry.modulesForCapture(editedModule)) {
             try {
                 capturedModules.add(captureModule(module, player));
             } catch (Exception exception) {

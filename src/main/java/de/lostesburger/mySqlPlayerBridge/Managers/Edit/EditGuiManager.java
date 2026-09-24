@@ -1,9 +1,6 @@
 package de.lostesburger.mySqlPlayerBridge.Managers.Edit;
 
-import de.lostesburger.mySqlPlayerBridge.Database.DatabaseException;
-import de.lostesburger.mySqlPlayerBridge.Database.PooledSqlManager;
 import de.lostesburger.mySqlPlayerBridge.Main;
-import de.lostesburger.mySqlPlayerBridge.Sync.SnapshotException;
 import de.lostesburger.mySqlPlayerBridge.Utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -18,7 +15,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -133,57 +129,15 @@ public class EditGuiManager implements Listener {
             return;
         }
 
-        Runnable saveTask = () -> {
-            try {
-                if(Main.playerLeaseCoordinator.hasDatabaseLease(session.targetUuid)){
-                    Main.platformScheduler.runForPlayer(admin,
-                            () -> admin.sendMessage(Chat.getMessage("edit-player-online-other-server")));
-                    return;
-                }
-            } catch (DatabaseException exception) {
-                Main.platformScheduler.runForPlayer(admin,
-                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
-                throw new RuntimeException(exception);
-            }
-            PooledSqlManager manager = Main.mySqlConnectionHandler.getManager();
-            String table = getTableForInventoryType(session.type);
-            String column = getColumnForInventoryType(session.type);
-            try {
-                manager.setOrUpdateEntry(table, Map.of("uuid", session.targetUuid.toString()), Map.of(column, serialized));
-            } catch (DatabaseException e) {
-                Main.platformScheduler.runForPlayer(admin,
-                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
-                throw new RuntimeException(e);
-            }
-
-            Main.platformScheduler.runForPlayer(admin,
-                    () -> admin.sendMessage(Chat.getMessage("edit-success")));
-        };
-        Main.mySqlConnectionHandler.getDatabaseExecutor().run(saveTask::run);
+        EditOperations.saveOfflineInventory(session.targetUuid, session.type, serialized)
+                .whenComplete((ignored, failure) -> EditOperations.report(admin, failure));
     }
 
     private void applyAndSaveOnline(Player admin, Player target, EditSession session, ItemStack[] contents){
-        Main.platformScheduler.runForPlayer(target, () -> {
-            if(Main.playerSyncService == null || !Main.playerSyncService.hasActiveLease(target.getUniqueId())){
-                Main.platformScheduler.runForPlayer(admin,
-                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
-                return;
-            }
-
-            try {
-                applyToPlayer(target, session.type, contents);
-                Main.playerSyncService.saveOnline(Main.playerSyncService.capture(target))
-                        .whenComplete((ignored, throwable) -> Main.platformScheduler.runForPlayer(admin, () ->
-                                admin.sendMessage(throwable == null
-                                        ? Chat.getMessage("edit-success")
-                                        : Chat.getMessage("edit-db-error"))));
-            } catch (SnapshotException exception) {
-                Main.getInstance().getLogger().warning("Could not capture edited inventory for "
-                        + target.getUniqueId() + ": " + exception.getMessage());
-                Main.platformScheduler.runForPlayer(admin,
-                        () -> admin.sendMessage(Chat.getMessage("edit-db-error")));
-            }
-        });
+        Main.playerSyncService.editOnline(target, session.type, player -> {
+            applyToPlayer(player, session.type, contents);
+            return java.util.concurrent.CompletableFuture.completedFuture(null);
+        }).whenComplete((ignored, failure) -> EditOperations.report(admin, failure));
     }
 
     @EventHandler
@@ -338,24 +292,6 @@ public class EditGuiManager implements Listener {
             }
         }
         return blocked;
-    }
-
-    private String getTableForInventoryType(String type){
-        return switch (type) {
-            case "inventory" -> Main.TABLE_NAME_INVENTORY;
-            case "armor" -> Main.TABLE_NAME_ARMOR;
-            case "enderchest" -> Main.TABLE_NAME_ENDERCHEST;
-            default -> "";
-        };
-    }
-
-    private String getColumnForInventoryType(String type){
-        return switch (type) {
-            case "inventory" -> "inventory";
-            case "armor" -> "armor";
-            case "enderchest" -> "enderchest";
-            default -> "";
-        };
     }
 
     private static class EditSession {

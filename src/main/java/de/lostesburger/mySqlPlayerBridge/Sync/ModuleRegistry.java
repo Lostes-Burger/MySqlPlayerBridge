@@ -18,11 +18,19 @@ public final class ModuleRegistry {
     }
 
     public List<SyncModule<?>> enabledModules() {
+        return modulesForCapture(null);
+    }
+
+    /** Explicit admin edits must persist their module even when automatic sync is disabled. */
+    public List<SyncModule<?>> modulesForCapture(String editedModule) {
         List<SyncModule<?>> enabled = new ArrayList<>();
         for (SyncModule<?> module : this.modules) {
-            if (module.enabled()) {
+            if (module.enabled() || module.id().equals(editedModule)) {
                 enabled.add(module);
             }
+        }
+        if (editedModule != null && !this.moduleIds.contains(editedModule)) {
+            throw new IllegalArgumentException("Unknown edit module: " + editedModule);
         }
         return Collections.unmodifiableList(enabled);
     }
