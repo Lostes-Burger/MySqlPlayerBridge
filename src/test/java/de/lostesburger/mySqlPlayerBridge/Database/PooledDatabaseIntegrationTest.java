@@ -62,6 +62,7 @@ class PooledDatabaseIntegrationTest {
                 verifyUpsert(manager, dataTable);
                 verifyRollback(manager, dataTable);
                 verifyLeaseOwnership(manager, leaseTable);
+                verifyOfflineEdits(manager, dataTable, leaseTable);
                 verifySchemaMigration(manager, migrationTable, legacyTable);
                 verifyEconomyPersistence(manager, economyTable);
             } finally {
@@ -118,6 +119,54 @@ class PooledDatabaseIntegrationTest {
             throw new IllegalStateException("force rollback");
         }));
         assertNull(manager.getEntry(table, Map.of("uuid", uuid)));
+    }
+
+    private static void verifyOfflineEdits(PooledSqlManager manager, String dataTable, String leaseTable) throws Exception {
+        PlayerLeaseRepository repository = new PlayerLeaseRepository(manager, leaseTable, 10);
+        UUID uuid = UUID.randomUUID();
+        PlayerLease online = new PlayerLease(uuid, UUID.randomUUID(), UUID.randomUUID());
+        assertEquals(LeaseAcquireResult.ACQUIRED, repository.tryAcquire(online));
+        assertFalse(repository.editOffline(uuid, connection -> {
+            throw new AssertionError("An online player's row must not be edited");
+        }));
+        assertTrue(repository.release(online));
+
+        assertThrows(DatabaseException.class, () -> repository.editOffline(uuid, connection -> {
+            manager.setOrUpdateEntry(connection, dataTable, Map.of("uuid", uuid.toString()), Map.of("value", 10));
+            throw new IllegalStateException("Force rollback of data and temporary lease");
+        }));
+        assertNull(manager.getEntry(dataTable, Map.of("uuid", uuid.toString())));
+        assertFalse(repository.hasUnexpiredLease(uuid));
+
+        var entered = new java.util.concurrent.CountDownLatch(1);
+        var commit = new java.util.concurrent.CountDownLatch(1);
+        var joining = new java.util.concurrent.CountDownLatch(1);
+        try (var workers = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            try {
+                var edited = workers.submit(() -> repository.editOffline(uuid, connection -> {
+                    manager.setOrUpdateEntry(connection, dataTable, Map.of("uuid", uuid.toString()), Map.of("value", 42));
+                    entered.countDown();
+                    assertTrue(commit.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                    return null;
+                }));
+                assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                var acquired = workers.submit(() -> {
+                    joining.countDown();
+                    return repository.tryAcquire(online);
+                });
+                assertTrue(joining.await(5, java.util.concurrent.TimeUnit.SECONDS));
+                // The new session cannot acquire the row while the editor holds its transaction lock.
+                assertThrows(java.util.concurrent.TimeoutException.class,
+                        () -> acquired.get(100, java.util.concurrent.TimeUnit.MILLISECONDS));
+                commit.countDown();
+                assertTrue(edited.get(5, java.util.concurrent.TimeUnit.SECONDS));
+                assertEquals(LeaseAcquireResult.ACQUIRED, acquired.get(5, java.util.concurrent.TimeUnit.SECONDS));
+                assertEquals(42, ((Number) manager.getEntry(dataTable, Map.of("uuid", uuid.toString())).get("value")).intValue());
+                assertTrue(repository.release(online));
+            } finally {
+                commit.countDown();
+            }
+        }
     }
 
     private static void verifyLeaseOwnership(PooledSqlManager manager, String table) throws DatabaseException {
