@@ -90,3 +90,6 @@ update-available-prerelease: "MySqlPlayerBridge 插件有新的预发布版本�
 download-update: "§9点击 §c[§5此处§c] §9访问下载页面。"
 # 更新检查失败提示：连接GitHub检查更新失败或返回异常数据时显示
 update-check-failed: "GitHub 更新检查失败或返回了无效数据: {reason}"
+
+edit-batch-result: "§7已保存：{saved}；已跳过（在其他服务器上活动）：{busy}；失败：{failed}。"
+edit-save-failed: "§c无法保存修改。请查看控制台，并在重试之前检查玩家的当前数据。"

@@ -47,3 +47,6 @@ update-available: "A new version of the MySqlPlayerBridge plugin is available! I
 update-available-prerelease: "A new PRE-RELEASE version of the MySqlPlayerBridge plugin is available! PRE-RELEASES can include borken feature and cause problem with your system! Installed version: {installed}, latest version: {latest}."
 download-update: "§9Click §c[§5here§c] §9to visit the download page."
 update-check-failed: "GitHub update check failed or returned invalid data: {reason}"
+
+edit-batch-result: "§7Saved: {saved}; skipped (active on another server): {busy}; failed: {failed}."
+edit-save-failed: "§cEdit could not be saved. See console; check the player's current data before retrying."

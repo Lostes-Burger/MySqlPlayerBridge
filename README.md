@@ -82,22 +82,18 @@ main-table-name: "player_data"
 
 ## Admin Edit Feature
 
-The edit system is designed for real-world operations:
-- Edit any supported module values directly in the database.
-- Inventory, armor, ender chest, and offhand are edited via GUI.
-- Numeric fields validate input before saving.
-- Offline players can be edited using database entries.
+The edit command lets administrators correct player data without needing the player to be online. You can change values such as experience, health, food, game mode, location, and money. Inventories, armor, and ender chests open in an in-game editor so they can be changed safely by hand.
 
-Example:
+Player names and available values can be selected with tab completion. To apply the same value to every player, use `*` instead of a name. Players who are currently active on another server are left unchanged and reported in the result.
+
+Examples:
 
 ```
-/mpb edit <player> inventory
-/mpb edit <player> offhand
-/mpb edit <player> location <world> <x> <y> <z> [yaw] [pitch]
-/mpb edit <player> exp <value>
-/mpb edit <player> exp_level <value>
+/mpb edit Steve exp 0.5
+/mpb edit Steve gamemode creative
+/mpb edit Steve inventory
+/mpb edit * food_level 20
 ```
-
 ## Requirements
 
 - Paper or Folia
